@@ -31,6 +31,10 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case abacus
     case mistral
     case deepseek
+    case zhipu
+    case doubao
+    case ernie
+    case mimo
 }
 
 // swiftformat:enable sortDeclarations
@@ -64,6 +68,10 @@ public enum IconStyle: Sendable, CaseIterable {
     case abacus
     case mistral
     case deepseek
+    case zhipu
+    case doubao
+    case ernie
+    case mimo
     case combined
 }
 

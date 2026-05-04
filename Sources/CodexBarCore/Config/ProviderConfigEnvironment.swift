@@ -31,6 +31,10 @@ public enum ProviderConfigEnvironment {
             }
         case .openrouter:
             env[OpenRouterSettingsReader.envKey] = apiKey
+        case .mimo:
+            if let key = MiMoSettingsReader.apiKeyEnvironmentKeys.first {
+                env[key] = apiKey
+            }
         default:
             break
         }

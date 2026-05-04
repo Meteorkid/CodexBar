@@ -940,6 +940,9 @@ struct SettingsStoreTests {
             .abacus,
             .mistral,
             .deepseek,
+            .zhipu,
+            .doubao,
+            .ernie,
         ])
 
         // Move one provider; ensure it's persisted across instances.

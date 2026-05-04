@@ -285,6 +285,10 @@ private struct ProviderSwitchChip: View {
         case .abacus: "Abacus"
         case .mistral: "Mistral"
         case .deepseek: "DeepSeek"
+        case .zhipu: "Zhipu"
+        case .doubao: "Doubao"
+        case .ernie: "ERNIE"
+        case .mimo: "MiMo"
         }
     }
 }
@@ -650,6 +654,14 @@ enum WidgetColors {
             Color(red: 255 / 255, green: 80 / 255, blue: 15 / 255) // Mistral orange
         case .deepseek:
             Color(red: 82 / 255, green: 125 / 255, blue: 240 / 255)
+        case .zhipu:
+            Color(red: 0 / 255, green: 115 / 255, blue: 217 / 255) // Zhipu blue
+        case .doubao:
+            Color(red: 0 / 255, green: 140 / 255, blue: 243 / 255) // Doubao blue
+        case .ernie:
+            Color(red: 38 / 255, green: 115 / 255, blue: 217 / 255) // ERNIE blue
+        case .mimo:
+            Color(red: 1.0, green: 140 / 255, blue: 0) // MiMo orange
         }
     }
 }

@@ -41,6 +41,10 @@ enum ProviderImplementationRegistry {
         case .abacus: AbacusProviderImplementation()
         case .mistral: MistralProviderImplementation()
         case .deepseek: DeepSeekProviderImplementation()
+        case .zhipu: ZhipuProviderImplementation()
+        case .doubao: DoubaoProviderImplementation()
+        case .ernie: ErnieProviderImplementation()
+        case .mimo: MiMoProviderImplementation()
         }
     }
 

@@ -200,7 +200,7 @@ struct TokenAccountCLIContext {
                 mistral: ProviderSettingsSnapshot.MistralProviderSettings(
                     cookieSource: cookieSource,
                     manualCookieHeader: cookieHeader))
-        case .gemini, .antigravity, .copilot, .kiro, .vertexai, .kimik2, .synthetic, .openrouter, .warp, .deepseek:
+        case .gemini, .antigravity, .copilot, .kiro, .vertexai, .kimik2, .synthetic, .openrouter, .warp, .deepseek, .zhipu, .doubao, .ernie, .mimo:
             return nil
         }
     }
