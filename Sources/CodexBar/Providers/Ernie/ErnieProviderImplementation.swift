@@ -77,6 +77,14 @@ struct ErnieProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.ernieManualCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
+                        id: "ernie-get-cookies",
+                        title: "Get Cookies",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieBookmarklet.openInstructions()
+                        }),
+                    ProviderSettingsActionDescriptor(
                         id: "ernie-open-console",
                         title: "Open Console",
                         style: .link,

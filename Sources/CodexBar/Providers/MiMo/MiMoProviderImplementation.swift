@@ -77,6 +77,14 @@ struct MiMoProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.mimoManualCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
+                        id: "mimo-get-cookies",
+                        title: "Get Cookies",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieBookmarklet.openInstructions()
+                        }),
+                    ProviderSettingsActionDescriptor(
                         id: "mimo-open-console",
                         title: "Open Console",
                         style: .link,

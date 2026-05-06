@@ -77,6 +77,14 @@ struct ZhipuProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.zhipuManualCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
+                        id: "zhipu-get-cookies",
+                        title: "Get Cookies",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieBookmarklet.openInstructions()
+                        }),
+                    ProviderSettingsActionDescriptor(
                         id: "zhipu-open-console",
                         title: "Open Console",
                         style: .link,

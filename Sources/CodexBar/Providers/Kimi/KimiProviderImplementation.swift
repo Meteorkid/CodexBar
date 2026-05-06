@@ -69,6 +69,14 @@ struct KimiProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.kimiManualCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
+                        id: "kimi-get-cookies",
+                        title: "Get Cookies",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieBookmarklet.openInstructions()
+                        }),
+                    ProviderSettingsActionDescriptor(
                         id: "kimi-open-console",
                         title: "Open Console",
                         style: .link,

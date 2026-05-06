@@ -77,6 +77,14 @@ struct DoubaoProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.doubaoManualCookieHeader),
                 actions: [
                     ProviderSettingsActionDescriptor(
+                        id: "doubao-get-cookies",
+                        title: "Get Cookies",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieBookmarklet.openInstructions()
+                        }),
+                    ProviderSettingsActionDescriptor(
                         id: "doubao-open-console",
                         title: "Open Console",
                         style: .link,
