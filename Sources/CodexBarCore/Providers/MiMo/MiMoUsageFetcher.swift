@@ -129,22 +129,36 @@ public enum MiMoUsageError: LocalizedError, Sendable {
 public struct MiMoUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.mimoUsage)
     private static let webLog = CodexBarLog.logger(LogCategories.mimoWeb)
-    private static let baseURL = URL(string: "https://api.xiaomimimo.com/v1")!
+    // MiMo 使用 Anthropic API 兼容端点
+    private static let baseURL =
+        URL(string: "https://token-plan-sgp.xiaomimimo.com/anthropic")!
     private static let balanceURL =
         URL(string: "https://platform.xiaomimimo.com/api/user/balance")!
+    private static let supportedModels = ["mimo-v2.5-pro", "mimo-v2.5"]
 
-    public static func verifyAPI(apiKey: String) async throws -> MiMoUsageSnapshot {
+    public static func verifyAPI(
+        apiKey: String,
+        baseURL: URL = URL(string: "https://token-plan-sgp.xiaomimimo.com/anthropic")!) async throws -> MiMoUsageSnapshot
+    {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw MiMoUsageError.missingCredentials
         }
 
-        let modelsURL = self.baseURL.appendingPathComponent("models")
-        var request = URLRequest(url: modelsURL)
-        request.httpMethod = "GET"
-        // MiMo 使用 api-key header 而非 Authorization: Bearer
-        request.setValue(apiKey, forHTTPHeaderField: "api-key")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // 通过发送最小请求验证 API 连接
+        let messagesURL = baseURL.appendingPathComponent("v1/messages")
+        var request = URLRequest(url: messagesURL)
+        request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 15
+
+        let body: [String: Any] = [
+            "model": "mimo-v2.5-pro",
+            "max_tokens": 5,
+            "messages": [["role": "user", "content": "hi"]],
+        ]
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response) = try await URLSession.shared.data(for: request)
 
@@ -153,12 +167,12 @@ public struct MiMoUsageFetcher: Sendable {
         }
 
         guard httpResponse.statusCode == 200 else {
-            let body = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("MiMo API returned \(httpResponse.statusCode): \(body)")
+            let respBody = String(data: data, encoding: .utf8) ?? ""
+            Self.log.error("MiMo API returned \(httpResponse.statusCode): \(respBody)")
             throw MiMoUsageError.apiError("HTTP \(httpResponse.statusCode)")
         }
 
-        return try self.parseModelsResponse(data: data)
+        return try self.parseMessagesResponse(data: data)
     }
 
     public static func fetchBalance(
@@ -201,23 +215,21 @@ public struct MiMoUsageFetcher: Sendable {
         try self.parseBalanceResponse(data: data)
     }
 
-    static func _parseModelsForTesting(_ data: Data) throws -> MiMoUsageSnapshot {
-        try self.parseModelsResponse(data: data)
+    static func _parseMessagesForTesting(_ data: Data) throws -> MiMoUsageSnapshot {
+        try self.parseMessagesResponse(data: data)
     }
 
-    private static func parseModelsResponse(data: Data) throws -> MiMoUsageSnapshot {
-        let decoded: ModelsResponse
-        do {
-            decoded = try JSONDecoder().decode(ModelsResponse.self, from: data)
-        } catch {
-            throw MiMoUsageError.parseFailed(error.localizedDescription)
+    private static func parseMessagesResponse(data: Data) throws -> MiMoUsageSnapshot {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let model = json["model"] as? String
+        else {
+            throw MiMoUsageError.parseFailed("Invalid Anthropic Messages response")
         }
 
-        let modelNames = decoded.data.prefix(5).map(\.id)
         return MiMoUsageSnapshot(
             isConnected: true,
-            modelCount: decoded.data.count,
-            modelNames: Array(modelNames),
+            modelCount: self.supportedModels.count,
+            modelNames: self.supportedModels,
             updatedAt: Date())
     }
 
@@ -257,12 +269,3 @@ public struct MiMoUsageFetcher: Sendable {
     }
 }
 
-// MARK: - API response types
-
-private struct ModelsResponse: Decodable, Sendable {
-    let data: [ModelEntry]
-}
-
-private struct ModelEntry: Decodable, Sendable {
-    let id: String
-}

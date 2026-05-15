@@ -129,7 +129,10 @@ struct KeychainCookieHeaderStore: CookieHeaderStoring {
             return
         }
 
-        let data = raw.data(using: .utf8)!
+        guard let data = raw.data(using: .utf8) else {
+            Self.log.error("Failed to encode cookie header as UTF-8")
+            return
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.service,

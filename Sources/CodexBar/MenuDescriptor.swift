@@ -41,6 +41,7 @@ struct MenuDescriptor {
         case about = "info.circle"
         case quit = "xmark.rectangle"
         case copyError = "doc.on.doc"
+        case changelog = "list.bullet.rectangle"
     }
 
     enum TextStyle {
@@ -65,6 +66,7 @@ struct MenuDescriptor {
         case about
         case quit
         case copyError(String)
+        case changelog
     }
 
     var sections: [Section]
@@ -392,6 +394,9 @@ struct MenuDescriptor {
         if metadata?.dashboardURL != nil {
             entries.append(.action("Usage Dashboard", .dashboard))
         }
+        if store.settings.providerChangelogLinksEnabled, metadata?.changelogURL != nil {
+            entries.append(.action("Changelog", .changelog))
+        }
         if metadata?.statusPageURL != nil || metadata?.statusLinkURL != nil {
             entries.append(.action("Status Page", .statusPage))
         }
@@ -499,18 +504,20 @@ extension MenuDescriptor.MenuAction {
     var systemImageName: String? {
         switch self {
         case .installUpdate, .settings, .about, .quit:
-            nil
-        case .refresh: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
-        case .refreshAugmentSession: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
-        case .dashboard: MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
-        case .statusPage: MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
-        case .addCodexAccount, .addProviderAccount: MenuDescriptor.MenuActionSystemImage.addAccount.rawValue
+            return nil
+        case .refresh: return MenuDescriptor.MenuActionSystemImage.refresh.rawValue
+        case .refreshAugmentSession: return MenuDescriptor.MenuActionSystemImage.refresh.rawValue
+        case .dashboard: return MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
+        case .statusPage: return MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
+        case .addCodexAccount, .addProviderAccount:
+            return MenuDescriptor.MenuActionSystemImage.addAccount.rawValue
         case .requestCodexSystemPromotion:
-            nil
-        case .switchAccount: MenuDescriptor.MenuActionSystemImage.switchAccount.rawValue
-        case .openTerminal: MenuDescriptor.MenuActionSystemImage.openTerminal.rawValue
-        case .loginToProvider: MenuDescriptor.MenuActionSystemImage.loginToProvider.rawValue
-        case .copyError: MenuDescriptor.MenuActionSystemImage.copyError.rawValue
+            return nil
+        case .switchAccount: return MenuDescriptor.MenuActionSystemImage.switchAccount.rawValue
+        case .openTerminal: return MenuDescriptor.MenuActionSystemImage.openTerminal.rawValue
+        case .loginToProvider: return MenuDescriptor.MenuActionSystemImage.loginToProvider.rawValue
+        case .copyError: return MenuDescriptor.MenuActionSystemImage.copyError.rawValue
+        case .changelog: return MenuDescriptor.MenuActionSystemImage.changelog.rawValue
         }
     }
 }

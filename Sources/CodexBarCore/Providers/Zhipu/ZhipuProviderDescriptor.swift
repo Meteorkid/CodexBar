@@ -18,7 +18,7 @@ public enum ZhipuProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show Zhipu usage",
                 cliName: "zhipu",
-                defaultEnabled: false,
+                defaultEnabled: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -55,7 +55,8 @@ struct ZhipuAPIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw ZhipuUsageError.missingCredentials
         }
-        let usage = try await ZhipuUsageFetcher.verifyAPI(apiKey: apiKey)
+        let baseURL = ZhipuSettingsReader.baseURL(environment: context.env)
+        let usage = try await ZhipuUsageFetcher.verifyAPI(apiKey: apiKey, baseURL: baseURL)
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "api")

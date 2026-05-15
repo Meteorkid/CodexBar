@@ -59,7 +59,17 @@ struct ZaiProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
-        _ = context
-        return []
+        [
+            ProviderSettingsFieldDescriptor(
+                id: "zai-api-key",
+                title: "API key",
+                subtitle: "Stored in ~/.codexbar/config.json.",
+                kind: .secure,
+                placeholder: "sk-...",
+                binding: context.stringBinding(\.zaiAPIToken),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+        ]
     }
 }

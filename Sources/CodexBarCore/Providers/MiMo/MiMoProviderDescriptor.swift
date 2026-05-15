@@ -18,7 +18,7 @@ public enum MiMoProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show MiMo usage",
                 cliName: "mimo",
-                defaultEnabled: false,
+                defaultEnabled: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -55,7 +55,8 @@ struct MiMoAPIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw MiMoUsageError.missingCredentials
         }
-        let usage = try await MiMoUsageFetcher.verifyAPI(apiKey: apiKey)
+        let baseURL = MiMoSettingsReader.baseURL(environment: context.env)
+        let usage = try await MiMoUsageFetcher.verifyAPI(apiKey: apiKey, baseURL: baseURL)
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "api")

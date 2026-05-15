@@ -201,7 +201,8 @@ struct TokenAccountCLIContext {
                     cookieSource: cookieSource,
                     manualCookieHeader: cookieHeader))
         case .gemini, .antigravity, .copilot, .kiro, .vertexai, .kimik2, .synthetic, .openrouter, .warp, .deepseek,
-             .codebuff, .zhipu, .doubao, .ernie, .mimo:
+             .codebuff, .zhipu, .doubao, .ernie, .mimo,
+             .openai, .manus, .moonshot, .windsurf, .crof, .venice, .commandcode, .stepfun, .bedrock:
             return nil
         }
     }

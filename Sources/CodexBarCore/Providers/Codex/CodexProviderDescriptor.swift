@@ -24,7 +24,8 @@ public enum CodexProviderDescriptor {
                 browserCookieOrder: ProviderBrowserCookieDefaults.codexCookieImportOrder
                     ?? ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://chatgpt.com/codex/settings/usage",
-                statusPageURL: "https://status.openai.com/"),
+                statusPageURL: "https://status.openai.com/",
+                changelogURL: "https://github.com/openai/codex/releases"),
             branding: ProviderBranding(
                 iconStyle: .codex,
                 iconResourceName: "ProviderIcon-codex",

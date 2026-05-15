@@ -1456,6 +1456,8 @@ extension StatusItemController {
             hidePersonalInfo: self.settings.hidePersonalInfo,
             claudePeakHoursEnabled: self.settings.claudePeakHoursEnabled,
             weeklyPace: weeklyPace,
+            quotaWarningMarkersVisible: self.settings.quotaWarningMarkersVisible,
+            quotaWarningThresholds: self.settings.quotaWarningThresholdsRaw,
             now: now)
         return UsageMenuCardView.Model.make(input)
     }

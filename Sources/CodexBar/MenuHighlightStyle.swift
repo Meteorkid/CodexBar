@@ -29,6 +29,10 @@ enum MenuHighlightStyle {
         highlighted ? self.selectionText : fallback
     }
 
+    static func warningMarker(_ highlighted: Bool) -> Color {
+        highlighted ? self.selectionText : Color(nsColor: .systemOrange)
+    }
+
     static func selectionBackground(_ highlighted: Bool) -> Color {
         highlighted ? Color(nsColor: .selectedContentBackgroundColor) : .clear
     }

@@ -72,7 +72,10 @@ struct KeychainKimiK2TokenStore: KimiK2TokenStoring {
             return
         }
 
-        let data = cleaned!.data(using: .utf8)!
+        guard let data = cleaned!.data(using: .utf8) else {
+            Self.log.error("Failed to encode token as UTF-8")
+            throw KimiK2TokenStoreError.invalidData
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.service,
@@ -84,18 +87,14 @@ struct KeychainKimiK2TokenStore: KimiK2TokenStoring {
         ]
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if updateStatus == errSecSuccess {
-            return
-        }
+        if updateStatus == errSecSuccess { return }
         if updateStatus != errSecItemNotFound {
             Self.log.error("Keychain update failed: \(updateStatus)")
             throw KimiK2TokenStoreError.keychainStatus(updateStatus)
         }
 
         var addQuery = query
-        for (key, value) in attributes {
-            addQuery[key] = value
-        }
+        for (key, value) in attributes { addQuery[key] = value }
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             Self.log.error("Keychain add failed: \(addStatus)")

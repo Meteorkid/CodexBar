@@ -15,6 +15,7 @@ struct ErnieProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.ernieAPIToken
         _ = settings.ernieCookieSource
         _ = settings.ernieManualCookieHeader
     }
@@ -29,7 +30,7 @@ struct ErnieProviderImplementation: ProviderImplementation {
         if ErnieSettingsReader.apiKey(environment: context.environment) != nil {
             return true
         }
-        return !context.settings.tokenAccounts(for: .ernie).isEmpty
+        return !context.settings.ernieAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     @MainActor
@@ -68,6 +69,38 @@ struct ErnieProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "ernie-base-url",
+                title: "API base URL",
+                subtitle: "Override the default API endpoint.",
+                kind: .plain,
+                placeholder: "https://qianfan.baidubce.com/v2",
+                binding: context.stringBinding(\.ernieBaseURL),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
+                id: "ernie-api-key",
+                title: "API key",
+                subtitle: "Stored in ~/.codexbar/config.json. "
+                    + "Get your key from console.bce.baidu.com/qianfan/overview.",
+                kind: .secure,
+                placeholder: "sk-...",
+                binding: context.stringBinding(\.ernieAPIToken),
+                actions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "ernie-open-api",
+                        title: "Open API Keys",
+                        style: .link,
+                        isVisible: nil,
+                        perform: {
+                            if let url = URL(string: "https://console.bce.baidu.com/qianfan/overview") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }),
+                ],
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "ernie-cookie",
                 title: "",

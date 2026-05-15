@@ -256,6 +256,78 @@ public enum ProviderTokenResolver {
         return nil
     }
 
+    public static func openAIAPIToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.openAIAPIResolution(environment: environment)?.token
+    }
+
+    public static func moonshotToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.moonshotResolution(environment: environment)?.token
+    }
+
+    public static func crofToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.crofResolution(environment: environment)?.token
+    }
+
+    public static func veniceToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.veniceResolution(environment: environment)?.token
+    }
+
+    public static func stepfunToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.stepfunResolution(environment: environment)?.token
+    }
+
+    public static func bedrockAccessKeyID(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.bedrockResolution(environment: environment)?.token
+    }
+
+    public static func openAIAPIResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(OpenAIAPISettingsReader.apiKey(environment: environment))
+    }
+
+    public static func moonshotResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(MoonshotSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func crofResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(CrofSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func veniceResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(VeniceSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func stepfunResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(StepFunSettingsReader.token(environment: environment))
+    }
+
+    public static func bedrockResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(BedrockSettingsReader.accessKeyID(environment: environment))
+    }
+
     private static func cleaned(_ raw: String?) -> String? {
         guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
             return nil

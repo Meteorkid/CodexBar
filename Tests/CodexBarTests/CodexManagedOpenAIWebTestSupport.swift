@@ -69,7 +69,7 @@ extension CodexManagedOpenAIWebTests {
             settings: settings,
             startupBehavior: .testing)
 
-        let message = store.openAIDashboardFriendlyError(
+        let message = OpenAIWebStore.friendlyError(
             body: "Sign in to continue",
             targetEmail: "ratulsarna@gmail.com",
             cookieImportStatus: "OpenAI cookies are for rdsarna@gmail.com, not ratulsarna@gmail.com.")

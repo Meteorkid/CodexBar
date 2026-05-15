@@ -9,11 +9,16 @@ public struct KimiUsageFetcher: Sendable {
     private static let usageURL =
         URL(string: "https://www.kimi.com/apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")!
 
-    public static func fetchUsage(authToken: String, now: Date = Date()) async throws -> KimiUsageSnapshot {
+    public static func fetchUsage(
+        authToken: String,
+        baseURL: URL = URL(string: "https://www.kimi.com")!,
+        now: Date = Date()) async throws -> KimiUsageSnapshot
+    {
         // Decode JWT to get session info
         let sessionInfo = self.decodeSessionInfo(from: authToken)
 
-        var request = URLRequest(url: self.usageURL)
+        let url = baseURL.appendingPathComponent("apiv2/kimi.gateway.billing.v1.BillingService/GetUsages")
+        var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")

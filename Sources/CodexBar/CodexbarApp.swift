@@ -385,9 +385,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
 
-        // Defensive fallback: this should not be hit in normal app lifecycle.
+        // Defensive fallback: should not be hit in normal app lifecycle.
+        // Triggered when one or more dependencies are nil before ensureStatusController is called.
         CodexBarLog.logger(LogCategories.app)
-            .error("StatusItemController fallback path used; settings/store mismatch likely.")
+            .error("StatusItemController fallback path used; missing dependencies. store=\(store != nil) settings=\(settings != nil) account=\(account != nil) selection=\(preferencesSelection != nil) managedCoordinator=\(managedCodexAccountCoordinator != nil) promotionCoordinator=\(codexAccountPromotionCoordinator != nil)")
         assertionFailure("StatusItemController fallback path used; check app lifecycle wiring.")
         let fallbackSettings = SettingsStore()
         let fetcher = UsageFetcher()

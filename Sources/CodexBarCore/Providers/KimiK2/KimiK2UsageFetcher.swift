@@ -155,12 +155,16 @@ public struct KimiK2UsageFetcher: Sendable {
         ["lastUpdated"],
     ]
 
-    public static func fetchUsage(apiKey: String) async throws -> KimiK2UsageSnapshot {
+    public static func fetchUsage(
+        apiKey: String,
+        baseURL: URL = URL(string: "https://api.moonshot.cn")!) async throws -> KimiK2UsageSnapshot
+    {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw KimiK2UsageError.missingCredentials
         }
 
-        var request = URLRequest(url: self.creditsURL)
+        let url = baseURL.appendingPathComponent("v1/users/me/balance")
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")

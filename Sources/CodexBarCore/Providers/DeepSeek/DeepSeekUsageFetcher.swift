@@ -124,12 +124,16 @@ public struct DeepSeekUsageFetcher: Sendable {
     private static let balanceURL = URL(string: "https://api.deepseek.com/user/balance")!
     private static let timeoutSeconds: TimeInterval = 15
 
-    public static func fetchUsage(apiKey: String) async throws -> DeepSeekUsageSnapshot {
+    public static func fetchUsage(
+        apiKey: String,
+        baseURL: URL = URL(string: "https://api.deepseek.com")!) async throws -> DeepSeekUsageSnapshot
+    {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw DeepSeekUsageError.missingCredentials
         }
 
-        var request = URLRequest(url: self.balanceURL)
+        let url = baseURL.appendingPathComponent("user/balance")
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")

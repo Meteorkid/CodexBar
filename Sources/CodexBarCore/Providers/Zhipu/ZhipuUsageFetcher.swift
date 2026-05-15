@@ -133,10 +133,13 @@ public struct ZhipuUsageFetcher: Sendable {
     private static let balanceURL =
         URL(string: "https://open.bigmodel.cn/api/paas/v4/users/balance")!
 
-    public static func verifyAPI(apiKey: String) async throws -> ZhipuUsageSnapshot {
+    public static func verifyAPI(
+        apiKey: String,
+        baseURL: URL = URL(string: "https://open.bigmodel.cn/api/paas/v4")!) async throws -> ZhipuUsageSnapshot
+    {
         do {
             let result = try await OpenAICompatibleVerifier.verify(
-                baseURL: self.baseURL,
+                baseURL: baseURL,
                 apiKey: apiKey,
                 logger: self.log)
             return ZhipuUsageSnapshot(

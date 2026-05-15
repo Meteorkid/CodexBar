@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.26 — 2026-05-16
+
+### New Providers
+- **OpenAI API**: admin API key support with credit balance tracking and per-model cost breakdown
+- **Manus**: cookie-based usage fetching from manus.im
+- **Moonshot**: API key support with region selection (international / China)
+- **Windsurf**: web cookie-based usage with Devin session import
+- **Crof**: API key support with usage fetching
+- **Venice**: API key support with usage fetching
+- **CommandCode**: cookie-based usage with plan catalog and login flow
+- **StepFun**: token-based usage with username/password login support
+- **AWS Bedrock**: AWS AccessKey/SecretKey support with budget tracking and per-region cost
+
+### Features
+- Quota warning notifications: configurable threshold alerts when usage exceeds limits (#28)
+- Quota warning markers: orange indicator lines on menu-bar progress bars (#27)
+- CLI `serve` command: built-in HTTP server for widget and external integrations
+- CLI `cache clear` command: clear cookie and token caches from the command line
+- Provider changelog links: each provider now links to its release notes
+
+### Docs
+- 16 new documentation files including all new provider guides
+- Social preview assets and llms.txt for AI agent discovery
+
 ## 0.24 — Unreleased
 
 ### Providers & Usage

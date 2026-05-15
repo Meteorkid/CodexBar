@@ -7,7 +7,7 @@ enum KeychainPromptCoordinator {
     private static let log = CodexBarLog.logger(LogCategories.keychainPrompt)
 
     static func install() {
-        KeychainPromptHandler.handler = { context in
+        KeychainPromptHandler.handler = { @Sendable context in
             self.presentKeychainPrompt(context)
         }
         BrowserCookieKeychainPromptHandler.handler = { context in

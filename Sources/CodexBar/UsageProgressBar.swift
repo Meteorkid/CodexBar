@@ -17,6 +17,7 @@ struct UsageProgressBar: View {
     let accessibilityLabel: String
     let pacePercent: Double?
     let paceOnTop: Bool
+    let warningMarkerPercents: [Double]
     @Environment(\.menuItemHighlighted) private var isHighlighted
     @Environment(\.displayScale) private var displayScale
 
@@ -25,13 +26,15 @@ struct UsageProgressBar: View {
         tint: Color,
         accessibilityLabel: String,
         pacePercent: Double? = nil,
-        paceOnTop: Bool = true)
+        paceOnTop: Bool = true,
+        warningMarkerPercents: [Double] = [])
     {
         self.percent = percent
         self.tint = tint
         self.accessibilityLabel = accessibilityLabel
         self.pacePercent = pacePercent
         self.paceOnTop = paceOnTop
+        self.warningMarkerPercents = warningMarkerPercents
     }
 
     private var clamped: Double {
@@ -55,6 +58,10 @@ struct UsageProgressBar: View {
                 if showTip {
                     self.paceTip(width: tipWidth)
                         .offset(x: tipOffset)
+                }
+                ForEach(Array(self.warningMarkerPercents.enumerated()), id: \.offset) { _, markerPercent in
+                    self.warningMarker()
+                        .offset(x: proxy.size.width * markerPercent / 100)
                 }
             }
             .clipped()
@@ -161,6 +168,13 @@ struct UsageProgressBar: View {
         })
 
         return (punchedStripe, centerStripe)
+    }
+
+    private func warningMarker() -> some View {
+        Rectangle()
+            .fill(MenuHighlightStyle.warningMarker(self.isHighlighted))
+            .frame(width: 1.5)
+            .frame(maxHeight: .infinity)
     }
 
     private static func clampedPercent(_ value: Double?) -> Double {

@@ -80,7 +80,10 @@ struct KeychainMiniMaxAPITokenStore: MiniMaxAPITokenStoring {
             return
         }
 
-        let data = cleaned!.data(using: .utf8)!
+        guard let data = cleaned!.data(using: .utf8) else {
+            Self.log.error("Failed to encode token as UTF-8")
+            throw MiniMaxAPITokenStoreError.invalidData
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.service,

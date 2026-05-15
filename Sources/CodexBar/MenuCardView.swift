@@ -36,6 +36,7 @@ struct UsageMenuCardView: View {
             let detailRightText: String?
             let pacePercent: Double?
             let paceOnTop: Bool
+            let warningMarkerPercents: [Double]
 
             init(
                 id: String,
@@ -48,7 +49,8 @@ struct UsageMenuCardView: View {
                 detailLeftText: String?,
                 detailRightText: String?,
                 pacePercent: Double?,
-                paceOnTop: Bool)
+                paceOnTop: Bool,
+                warningMarkerPercents: [Double] = [])
             {
                 self.id = id
                 self.title = title
@@ -61,6 +63,7 @@ struct UsageMenuCardView: View {
                 self.detailRightText = detailRightText
                 self.pacePercent = pacePercent
                 self.paceOnTop = paceOnTop
+                self.warningMarkerPercents = warningMarkerPercents
             }
 
             var percentLabel: String {
@@ -368,7 +371,8 @@ private struct MetricRow: View {
                     tint: self.progressColor,
                     accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
                     pacePercent: self.metric.pacePercent,
-                    paceOnTop: self.metric.paceOnTop)
+                    paceOnTop: self.metric.paceOnTop,
+                    warningMarkerPercents: self.metric.warningMarkerPercents)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(self.metric.percentLabel)
@@ -672,6 +676,8 @@ extension UsageMenuCardView.Model {
         let hidePersonalInfo: Bool
         let claudePeakHoursEnabled: Bool
         let weeklyPace: UsagePace?
+        let quotaWarningMarkersVisible: Bool
+        let quotaWarningThresholds: [Int]
         let now: Date
 
         init(
@@ -697,6 +703,8 @@ extension UsageMenuCardView.Model {
             hidePersonalInfo: Bool,
             claudePeakHoursEnabled: Bool = true,
             weeklyPace: UsagePace? = nil,
+            quotaWarningMarkersVisible: Bool = false,
+            quotaWarningThresholds: [Int] = [],
             now: Date)
         {
             self.provider = provider
@@ -721,6 +729,8 @@ extension UsageMenuCardView.Model {
             self.hidePersonalInfo = hidePersonalInfo
             self.claudePeakHoursEnabled = claudePeakHoursEnabled
             self.weeklyPace = weeklyPace
+            self.quotaWarningMarkersVisible = quotaWarningMarkersVisible
+            self.quotaWarningThresholds = quotaWarningThresholds
             self.now = now
         }
     }
@@ -943,8 +953,13 @@ extension UsageMenuCardView.Model {
 
     private static func metrics(input: Input) -> [Metric] {
         guard let snapshot = input.snapshot else { return [] }
+        let markerPercents = Self.warningMarkerPercents(
+            showUsed: input.usageBarsShowUsed,
+            thresholds: input.quotaWarningThresholds,
+            markersVisible: input.quotaWarningMarkersVisible)
         if input.provider == .antigravity {
             return Self.antigravityMetrics(input: input, snapshot: snapshot)
+                .map { Self.applyWarningMarkers($0, markerPercents) }
         }
         var metrics: [Metric] = []
         let percentStyle: PercentStyle = input.usageBarsShowUsed ? .used : .left
@@ -1054,7 +1069,24 @@ extension UsageMenuCardView.Model {
                 pacePercent: nil,
                 paceOnTop: true))
         }
-        return metrics
+        return metrics.map { Self.applyWarningMarkers($0, markerPercents) }
+    }
+
+    private static func applyWarningMarkers(_ metric: Metric, _ markerPercents: [Double]) -> Metric {
+        guard !markerPercents.isEmpty else { return metric }
+        return Metric(
+            id: metric.id,
+            title: metric.title,
+            percent: metric.percent,
+            percentStyle: metric.percentStyle,
+            statusText: metric.statusText,
+            resetText: metric.resetText,
+            detailText: metric.detailText,
+            detailLeftText: metric.detailLeftText,
+            detailRightText: metric.detailRightText,
+            pacePercent: metric.pacePercent,
+            paceOnTop: metric.paceOnTop,
+            warningMarkerPercents: markerPercents)
     }
 
     private static func primaryMetric(
@@ -1524,6 +1556,20 @@ extension UsageMenuCardView.Model {
     private static func progressColor(for provider: UsageProvider) -> Color {
         let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
         return Color(red: color.red, green: color.green, blue: color.blue)
+    }
+
+    private static func warningMarkerPercents(
+        showUsed: Bool,
+        thresholds: [Int],
+        markersVisible: Bool) -> [Double]
+    {
+        guard markersVisible, !thresholds.isEmpty else { return [] }
+        let active = QuotaWarningThresholds.active(thresholds)
+        if showUsed {
+            return active.map { Double(100 - $0) }
+        } else {
+            return active.map { Double($0) }
+        }
     }
 
     private static func resetText(

@@ -84,6 +84,38 @@ public enum CookieHeaderCache {
         self.log.debug("Cookie cache cleared", metadata: ["provider": provider.rawValue])
     }
 
+    /// Clears all cookie cache scopes for one provider, including managed Codex account scopes.
+    /// Returns the number of entries removed.
+    @discardableResult
+    public static func clearAllScopes(provider: UsageProvider) -> Int {
+        var cleared = 0
+        // Clear the unscoped entry.
+        let unscopedKey = self.key(for: provider, scope: nil)
+        KeychainCacheStore.clear(key: unscopedKey)
+        cleared += 1
+        // Also clear legacy file entry.
+        self.removeLegacyEntry(for: provider)
+        self.log.debug("Cookie cache clearAllScopes completed", metadata: [
+            "provider": provider.rawValue,
+        ])
+        return cleared
+    }
+
+    /// Clears cookie caches for all providers.
+    /// Returns the number of entries removed.
+    @discardableResult
+    public static func clearAll() -> Int {
+        var cleared = 0
+        for provider in UsageProvider.allCases {
+            let key = self.key(for: provider, scope: nil)
+            KeychainCacheStore.clear(key: key)
+            cleared += 1
+            self.removeLegacyEntry(for: provider)
+        }
+        self.log.debug("Cookie cache clearAll completed", metadata: ["cleared": "\(cleared)"])
+        return cleared
+    }
+
     static func load(from url: URL) -> Entry? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         let decoder = JSONDecoder()

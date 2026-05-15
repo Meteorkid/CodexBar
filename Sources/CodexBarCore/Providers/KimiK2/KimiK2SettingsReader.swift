@@ -6,6 +6,18 @@ public struct KimiK2SettingsReader: Sendable {
         "KIMI_API_KEY",
         "KIMI_KEY",
     ]
+    public static let baseURLKey = "KIMI_K2_BASE_URL"
+    private static let defaultBaseURL = URL(string: "https://api.moonshot.cn")!
+
+    public static func baseURL(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> URL
+    {
+        if let raw = environment[baseURLKey], !raw.isEmpty {
+            let cleaned = self.cleaned(raw)
+            if !cleaned.isEmpty, let url = URL(string: cleaned) { return url }
+        }
+        return self.defaultBaseURL
+    }
 
     public static func apiKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?

@@ -1,6 +1,8 @@
 import Foundation
 
-extension UsageStore {
+/// 状态页查询逻辑，从 UsageStore+Status 提取。
+/// 所有方法均为 static，无 UsageStore 实例耦合。
+enum StatusStore {
     static func fetchStatus(from baseURL: URL) async throws -> ProviderStatus {
         let apiURL = baseURL.appendingPathComponent("api/v2/status.json")
         var request = URLRequest(url: apiURL)

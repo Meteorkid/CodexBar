@@ -181,7 +181,12 @@ final class UsageStore {
     @ObservationIgnored let settings: SettingsStore
     @ObservationIgnored let environmentBase: [String: String]
     @ObservationIgnored private let sessionQuotaNotifier: any SessionQuotaNotifying
+    @ObservationIgnored let quotaWarningNotifier = QuotaWarningNotifier()
     @ObservationIgnored private let sessionQuotaLogger = CodexBarLog.logger(LogCategories.sessionQuota)
+    @ObservationIgnored var openAIWebStore: OpenAIWebStore!
+    @ObservationIgnored var planUtilizationStore: PlanUtilizationStore!
+    @ObservationIgnored var historicalPaceStore: HistoricalPaceStore!
+    @ObservationIgnored var widgetSnapshotBuilder: WidgetSnapshotBuilder!
     @ObservationIgnored let openAIWebLogger = CodexBarLog.logger(LogCategories.openAIWeb)
     @ObservationIgnored private let tokenCostLogger = CodexBarLog.logger(LogCategories.tokenCost)
     @ObservationIgnored let augmentLogger = CodexBarLog.logger(LogCategories.augment)
@@ -205,7 +210,7 @@ final class UsageStore {
     @ObservationIgnored var lastKnownSessionWindowSource: [UsageProvider: SessionQuotaWindowSource] = [:]
     @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
     @ObservationIgnored var planUtilizationHistory: [UsageProvider: PlanUtilizationHistoryBuckets] = [:]
-    @ObservationIgnored var weeklyLimitResetDetectorStates: [String: WeeklyLimitResetDetectorState] = [:]
+    @ObservationIgnored var weeklyLimitResetDetectorStates: [String: PlanUtilizationStore.WeeklyLimitResetDetectorState] = [:]
     @ObservationIgnored private var hasCompletedInitialRefresh: Bool = false
     @ObservationIgnored private let tokenFetchTTL: TimeInterval = 60 * 60
     @ObservationIgnored private let tokenFetchTimeout: TimeInterval = 10 * 60
@@ -258,6 +263,10 @@ final class UsageStore {
         })
         self.planUtilizationHistory = planUtilizationHistoryStore.load()
         self.weeklyLimitResetDetectorStates = Self.loadWeeklyLimitResetDetectorStates(from: settings.userDefaults)
+        self.openAIWebStore = OpenAIWebStore(store: self)
+        self.planUtilizationStore = PlanUtilizationStore(store: self)
+        self.historicalPaceStore = HistoricalPaceStore(store: self)
+        self.widgetSnapshotBuilder = WidgetSnapshotBuilder(store: self)
         self.logStartupState()
         self.bindSettings()
         self.pathDebugInfo = PathDebugSnapshot(
@@ -360,7 +369,33 @@ final class UsageStore {
     }
 
     func metadata(for provider: UsageProvider) -> ProviderMetadata {
-        self.providerMetadata[provider]!
+        guard let meta = self.providerMetadata[provider] else {
+            let fallback = ProviderMetadata(
+                id: provider,
+                displayName: provider.rawValue,
+                sessionLabel: provider.rawValue,
+                weeklyLabel: provider.rawValue,
+                opusLabel: nil,
+                supportsOpus: false,
+                supportsCredits: false,
+                creditsHint: "",
+                toggleTitle: provider.rawValue,
+                cliName: provider.rawValue,
+                defaultEnabled: false,
+                isPrimaryProvider: false,
+                usesAccountFallback: false,
+                browserCookieOrder: nil,
+                dashboardURL: nil,
+                subscriptionDashboardURL: nil,
+                statusPageURL: nil,
+                statusLinkURL: nil,
+                statusWorkspaceProductID: nil)
+            CodexBarLog.logger(LogCategories.providers)
+                .error("Missing ProviderMetadata for \(provider.rawValue); using fallback. Was providerMetadata initialized before access?")
+            assertionFailure("Missing metadata entry for \(provider.rawValue); check initialization order.")
+            return fallback
+        }
+        return meta
     }
 
     var codexBrowserCookieOrder: BrowserCookieImportOrder {
@@ -494,13 +529,13 @@ final class UsageStore {
             // OpenAI web scrape depends on the current Codex account email (which can change after login/account
             // switch). Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
             self.syncOpenAIWebState()
-            let refreshPolicy = OpenAIWebRefreshPolicyContext(
+            let refreshPolicy = OpenAIWebStore.RefreshPolicyContext(
                 accessEnabled: self.isEnabled(.codex) &&
                     self.settings.openAIWebAccessEnabled &&
                     self.settings.codexCookieSource.isEnabled,
                 batterySaverEnabled: self.settings.openAIWebBatterySaverEnabled,
                 force: forceTokenUsage)
-            let shouldRefreshOpenAIWeb = Self.shouldRunOpenAIWebRefresh(refreshPolicy)
+            let shouldRefreshOpenAIWeb = OpenAIWebStore.shouldRunRefresh(refreshPolicy)
             self.openAIWebLogger.debug(
                 "OpenAI web refresh gate",
                 metadata: [
@@ -708,9 +743,9 @@ final class UsageStore {
         do {
             let status: ProviderStatus
             if let urlString = meta.statusPageURL, let baseURL = URL(string: urlString) {
-                status = try await Self.fetchStatus(from: baseURL)
+                status = try await StatusStore.fetchStatus(from: baseURL)
             } else if let productID = meta.statusWorkspaceProductID {
-                status = try await Self.fetchWorkspaceStatus(productID: productID)
+                status = try await StatusStore.fetchWorkspaceStatus(productID: productID)
             } else {
                 return
             }
@@ -784,6 +819,7 @@ extension UsageStore {
         }
         let cursorCookieSource = self.settings.cursorCookieSource
         let cursorCookieHeader = self.settings.cursorCookieHeader
+        let kiloConfigToken = self.settings.providerConfig(for: .kilo)?.sanitizedAPIKey
         let ampCookieSource = self.settings.ampCookieSource
         let ampCookieHeader = self.settings.ampCookieHeader
         let ollamaCookieSource = self.settings.ollamaCookieSource
@@ -806,23 +842,6 @@ extension UsageStore {
         let browserDetection = self.browserDetection
         let claudeDebugExecutionContext = self.currentClaudeDebugExecutionContext()
         let text = await Task.detached(priority: .utility) { () -> String in
-            let unimplementedDebugLogMessages: [UsageProvider: String] = [
-                .gemini: "Gemini debug log not yet implemented",
-                .antigravity: "Antigravity debug log not yet implemented",
-                .opencode: "OpenCode debug log not yet implemented",
-                .alibaba: "Alibaba Coding Plan debug log not yet implemented",
-                .factory: "Droid debug log not yet implemented",
-                .copilot: "Copilot debug log not yet implemented",
-                .vertexai: "Vertex AI debug log not yet implemented",
-                .kilo: "Kilo debug log not yet implemented",
-                .kiro: "Kiro debug log not yet implemented",
-                .kimi: "Kimi debug log not yet implemented",
-                .kimik2: "Kimi K2 debug log not yet implemented",
-                .jetbrains: "JetBrains AI debug log not yet implemented",
-                .zhipu: "Zhipu debug log not yet implemented",
-                .doubao: "Doubao debug log not yet implemented",
-                .ernie: "ERNIE debug log not yet implemented",
-            ]
             let buildText = {
                 switch provider {
                 case .codex:
@@ -894,9 +913,259 @@ extension UsageStore {
                         configToken: nil,
                         hasEnvToken: deepSeekHasEnvToken,
                         hasTokenAccount: deepSeekHasTokenAccount)
-                case .gemini, .antigravity, .opencode, .opencodego, .factory, .copilot, .vertexai, .kilo, .kiro, .kimi,
-                     .kimik2, .jetbrains, .perplexity, .abacus, .mistral, .codebuff, .zhipu, .doubao, .ernie, .mimo:
-                    return unimplementedDebugLogMessages[provider] ?? "Debug log not yet implemented"
+                case .kilo:
+                    let resolution = ProviderTokenResolver.kiloResolution(environment: processEnvironment)
+                    return Self.apiKeyDebugLine(
+                        label: "KILO_API_KEY",
+                        resolution: resolution,
+                        configToken: kiloConfigToken,
+                        hasEnvToken: KiloSettingsReader.apiKey(environment: processEnvironment) != nil)
+                case .kimi:
+                    let resolution = ProviderTokenResolver.kimiAuthResolution(environment: processEnvironment)
+                    let hasAny = resolution != nil
+                    let source = resolution?.source.rawValue ?? "none"
+                    return "KIMI_AUTH=\(hasAny ? "present" : "missing") source=\(source)"
+                case .kimik2:
+                    let resolution = ProviderTokenResolver.kimiK2Resolution(environment: processEnvironment)
+                    let hasEnv = KimiK2SettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "KIMI_K2_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .copilot:
+                    let resolution = ProviderTokenResolver.copilotResolution(environment: processEnvironment)
+                    let hasAny = resolution != nil
+                    let source = resolution?.source.rawValue ?? "none"
+                    return "COPILOT_API_TOKEN=\(hasAny ? "present" : "missing") source=\(source)"
+                case .perplexity:
+                    let resolution = ProviderTokenResolver.perplexityResolution(environment: processEnvironment)
+                    let hasEnv = PerplexitySettingsReader.sessionToken(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "PERPLEXITY_SESSION_TOKEN",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .codebuff:
+                    let resolution = ProviderTokenResolver.codebuffResolution(environment: processEnvironment)
+                    let hasEnv = CodebuffSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "CODEBUFF_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .zhipu:
+                    let resolution = ProviderTokenResolver.zhipuResolution(environment: processEnvironment)
+                    let hasEnv = ZhipuSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "ZHIPU_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .doubao:
+                    let resolution = ProviderTokenResolver.doubaoResolution(environment: processEnvironment)
+                    let hasEnv = DoubaoSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "DOUBAO_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .ernie:
+                    let resolution = ProviderTokenResolver.ernieResolution(environment: processEnvironment)
+                    let hasEnv = ErnieSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "ERNIE_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .mimo:
+                    let resolution = ProviderTokenResolver.mimoResolution(environment: processEnvironment)
+                    let hasEnv = MiMoSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "MIMO_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .opencode:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let session = try OpenCodeCookieImporter.importSession(browserDetection: browserDetection)
+                            return "OPENCODE_COOKIE=present source=\(session.sourceLabel) cookies=\(session.cookies.count)"
+                        } catch {
+                            return "OPENCODE_COOKIE=missing error=\(error.localizedDescription)"
+                        }
+                    }
+                case .abacus:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let sessions = try AbacusCookieImporter.importSessions(browserDetection: browserDetection)
+                            let first = sessions.first
+                            return "ABACUS_COOKIE=present count=\(sessions.count) source=\(first?.sourceLabel ?? "none")"
+                        } catch {
+                            return "ABACUS_COOKIE=missing error=\(error.localizedDescription)"
+                        }
+                    }
+                case .mistral:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let session = try MistralCookieImporter.importSession(browserDetection: browserDetection)
+                            return "MISTRAL_COOKIE=present source=\(session.sourceLabel) cookies=\(session.cookies.count)"
+                        } catch {
+                            return "MISTRAL_COOKIE=missing error=\(error.localizedDescription)"
+                        }
+                    }
+                case .factory:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let probe = FactoryStatusProbe(browserDetection: browserDetection)
+                            let snapshot = try await probe.fetch()
+                            var lines: [String] = []
+                            lines.append("FACTORY_PROBE=success")
+                            if let email = snapshot.accountEmail { lines.append("email=\(email)") }
+                            if let plan = snapshot.planName { lines.append("plan=\(plan)") }
+                            lines.append("standard=\(snapshot.standardUserTokens)/\(snapshot.standardAllowance)")
+                            lines.append("premium=\(snapshot.premiumUserTokens)/\(snapshot.premiumAllowance)")
+                            return lines.joined(separator: "\n")
+                        } catch {
+                            return "FACTORY_PROBE=failed error=\(error.localizedDescription)"
+                        }
+                    }
+                case .gemini:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let probe = GeminiStatusProbe()
+                            let snapshot = try await probe.fetch()
+                            var lines: [String] = []
+                            lines.append("GEMINI_PROBE=success")
+                            if let email = snapshot.accountEmail { lines.append("email=\(email)") }
+                            if let plan = snapshot.accountPlan { lines.append("plan=\(plan)") }
+                            for quota in snapshot.modelQuotas {
+                                lines.append("\(quota.modelId)=\(String(format: "%.1f%%", quota.percentLeft))")
+                            }
+                            return lines.joined(separator: "\n")
+                        } catch {
+                            return "GEMINI_PROBE=failed error=\(error.localizedDescription)"
+                        }
+                    }
+                case .antigravity:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let probe = AntigravityStatusProbe()
+                            let snapshot = try await probe.fetch()
+                            var lines: [String] = []
+                            lines.append("ANTIGRAVITY_PROBE=success")
+                            if let email = snapshot.accountEmail { lines.append("email=\(email)") }
+                            if let plan = snapshot.accountPlan { lines.append("plan=\(plan)") }
+                            for quota in snapshot.modelQuotas {
+                                let pct = quota.remainingFraction.map { String(format: "%.1f%%", $0 * 100) } ?? "n/a"
+                                lines.append("\(quota.label)=\(pct)")
+                            }
+                            return lines.joined(separator: "\n")
+                        } catch {
+                            return "ANTIGRAVITY_PROBE=failed error=\(error.localizedDescription)"
+                        }
+                    }
+                case .kiro:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let probe = KiroStatusProbe()
+                            let snapshot = try await probe.fetch()
+                            var lines: [String] = []
+                            lines.append("KIRO_PROBE=success")
+                            lines.append("plan=\(snapshot.planName)")
+                            lines.append("credits=\(String(format: "%.1f", snapshot.creditsUsed))/\(String(format: "%.1f", snapshot.creditsTotal)) (\(String(format: "%.1f%%", snapshot.creditsPercent)))")
+                            if let bonus = snapshot.bonusCreditsUsed, let bonusTotal = snapshot.bonusCreditsTotal {
+                                lines.append("bonus=\(String(format: "%.1f", bonus))/\(String(format: "%.1f", bonusTotal))")
+                            }
+                            return lines.joined(separator: "\n")
+                        } catch {
+                            return "KIRO_PROBE=failed error=\(error.localizedDescription)"
+                        }
+                    }
+                case .jetbrains:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        do {
+                            let probe = JetBrainsStatusProbe()
+                            let snapshot = try await probe.fetch()
+                            var lines: [String] = []
+                            lines.append("JETBRAINS_PROBE=success")
+                            let q = snapshot.quotaInfo
+                            if let type = q.type { lines.append("quota_type=\(type)") }
+                            lines.append("used=\(String(format: "%.0f", q.used))/\(String(format: "%.0f", q.maximum))")
+                            lines.append("available=\(String(format: "%.0f", q.available))")
+                            if let refill = snapshot.refillInfo {
+                                if let refillType = refill.type { lines.append("refill_type=\(refillType)") }
+                                if let amount = refill.amount { lines.append("refill_amount=\(String(format: "%.0f", amount))") }
+                            }
+                            return lines.joined(separator: "\n")
+                        } catch {
+                            return "JETBRAINS_PROBE=failed error=\(error.localizedDescription)"
+                        }
+                    }
+                case .opencodego:
+                    return "OpenCodeGo uses local CLI authentication; no API key or cookie to probe."
+                case .vertexai:
+                    return "Vertex AI uses OAuth via Google Cloud; run `gcloud auth print-access-token` to verify."
+                case .openai:
+                    let resolution = ProviderTokenResolver.openAIAPIResolution(environment: processEnvironment)
+                    let hasEnv = OpenAIAPISettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "OPENAI_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .manus:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        "MANUS=web-based cookie; no API key to probe."
+                    }
+                case .moonshot:
+                    let resolution = ProviderTokenResolver.moonshotResolution(environment: processEnvironment)
+                    let hasEnv = MoonshotSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "MOONSHOT_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .windsurf:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        "WINDSURF=web-based cookie; use Settings to configure."
+                    }
+                case .crof:
+                    let resolution = ProviderTokenResolver.crofResolution(environment: processEnvironment)
+                    let hasEnv = CrofSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "CROF_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .venice:
+                    let resolution = ProviderTokenResolver.veniceResolution(environment: processEnvironment)
+                    let hasEnv = VeniceSettingsReader.apiKey(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "VENICE_API_KEY",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .commandcode:
+                    return await Self.runWithTimeout(seconds: 15) {
+                        "COMMANDCODE=web-based cookie; use Settings to configure."
+                    }
+                case .stepfun:
+                    let resolution = ProviderTokenResolver.stepfunResolution(environment: processEnvironment)
+                    let hasEnv = StepFunSettingsReader.token(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "STEPFUN_TOKEN",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
+                case .bedrock:
+                    let resolution = ProviderTokenResolver.bedrockResolution(environment: processEnvironment)
+                    let hasEnv = BedrockSettingsReader.accessKeyID(environment: processEnvironment) != nil
+                    return Self.apiKeyDebugLine(
+                        label: "BEDROCK_ACCESS_KEY_ID",
+                        resolution: resolution,
+                        configToken: nil,
+                        hasEnvToken: hasEnv)
                 }
             }
             return await claudeDebugExecutionContext.apply {

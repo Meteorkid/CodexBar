@@ -80,7 +80,10 @@ struct KeychainCopilotTokenStore: CopilotTokenStoring {
             return
         }
 
-        let data = cleaned!.data(using: .utf8)!
+        guard let data = cleaned!.data(using: .utf8) else {
+            Self.log.error("Failed to encode token as UTF-8")
+            throw CopilotTokenStoreError.invalidData
+        }
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: self.service,
@@ -92,18 +95,14 @@ struct KeychainCopilotTokenStore: CopilotTokenStoring {
         ]
 
         let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if updateStatus == errSecSuccess {
-            return
-        }
+        if updateStatus == errSecSuccess { return }
         if updateStatus != errSecItemNotFound {
             Self.log.error("Keychain update failed: \(updateStatus)")
             throw CopilotTokenStoreError.keychainStatus(updateStatus)
         }
 
         var addQuery = query
-        for (key, value) in attributes {
-            addQuery[key] = value
-        }
+        for (key, value) in attributes { addQuery[key] = value }
         let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             Self.log.error("Keychain add failed: \(addStatus)")

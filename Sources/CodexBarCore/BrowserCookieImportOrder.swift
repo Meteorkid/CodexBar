@@ -44,8 +44,7 @@ extension Browser {
              .edge, .edgeBeta, .edgeCanary,
              .helium,
              .vivaldi,
-             .dia,
-             .quark:
+             .dia:
             return true
         @unknown default:
             return true

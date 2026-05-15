@@ -78,7 +78,9 @@ public enum CodexBarLog {
         self.lock.lock()
         defer { lock.unlock() }
         guard !self.isBootstrapped else { return }
+        self.levelLock.lock()
         self.currentLevel = config.level
+        self.levelLock.unlock()
 
         let baseFactory: @Sendable (String) -> any LogHandler = { label in
             switch config.destination {

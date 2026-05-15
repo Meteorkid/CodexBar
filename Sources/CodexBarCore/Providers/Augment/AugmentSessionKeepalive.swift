@@ -161,7 +161,10 @@ public final class AugmentSessionKeepalive {
                 }
             }
 
-            let earliestExpiration = expirationDates.min()!
+            guard let earliestExpiration = expirationDates.min() else {
+                self.log("   ⚠️ No expiration dates found; skipping keepalive check")
+                return false
+            }
             let timeUntilExpiration = earliestExpiration.timeIntervalSinceNow
             let expiringCookie = session.cookies.first { $0.expiresDate == earliestExpiration }
 

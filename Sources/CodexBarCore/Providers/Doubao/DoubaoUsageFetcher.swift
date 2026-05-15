@@ -133,10 +133,13 @@ public struct DoubaoUsageFetcher: Sendable {
     private static let balanceURL =
         URL(string: "https://console.volcengine.com/ark/api/open/v1/resourcepack/billing/query")!
 
-    public static func verifyAPI(apiKey: String) async throws -> DoubaoUsageSnapshot {
+    public static func verifyAPI(
+        apiKey: String,
+        baseURL: URL = URL(string: "https://ark.cn-beijing.volces.com/api/v3")!) async throws -> DoubaoUsageSnapshot
+    {
         do {
             let result = try await OpenAICompatibleVerifier.verify(
-                baseURL: self.baseURL,
+                baseURL: baseURL,
                 apiKey: apiKey,
                 logger: self.log)
             return DoubaoUsageSnapshot(

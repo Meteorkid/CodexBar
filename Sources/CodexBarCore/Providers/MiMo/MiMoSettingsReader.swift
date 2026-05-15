@@ -3,6 +3,18 @@ import Foundation
 public struct MiMoSettingsReader: Sendable {
     public static let apiKeyEnvironmentKey = "MIMO_API_KEY"
     public static let apiKeyEnvironmentKeys = [Self.apiKeyEnvironmentKey, "XIAOMI_API_KEY"]
+    public static let baseURLKey = "MIMO_BASE_URL"
+    private static let defaultBaseURL = URL(string: "https://token-plan-sgp.xiaomimimo.com/anthropic")!
+
+    public static func baseURL(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> URL
+    {
+        if let raw = environment[baseURLKey], !raw.isEmpty {
+            let cleaned = self.cleaned(raw)
+            if !cleaned.isEmpty, let url = URL(string: cleaned) { return url }
+        }
+        return self.defaultBaseURL
+    }
 
     public static func apiKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?

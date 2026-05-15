@@ -1,5 +1,6 @@
 #if os(macOS)
 import LocalAuthentication
+import os
 import Security
 #endif
 
@@ -43,7 +44,14 @@ public enum KeychainPromptHandler {
     }
 
     @TaskLocal private static var taskHandlerStore: HandlerStore?
-    public nonisolated(unsafe) static var handler: ((KeychainPromptContext) -> Void)?
+    private static let handlerStorage = OSAllocatedUnfairLock<
+        (@Sendable (KeychainPromptContext) -> Void)?
+    >(initialState: nil)
+
+    public static var handler: (@Sendable (KeychainPromptContext) -> Void)? {
+        get { handlerStorage.withLock { $0 } }
+        set { handlerStorage.withLock { $0 = newValue } }
+    }
 
     public static func notify(_ context: KeychainPromptContext) {
         if let taskHandlerStore {

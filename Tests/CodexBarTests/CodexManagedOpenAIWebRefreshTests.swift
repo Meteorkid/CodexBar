@@ -286,10 +286,10 @@ struct CodexManagedOpenAIWebRefreshTests {
 
     @Test
     func `post import retry timeout exceeds normal retry timeout`() {
-        #expect(UsageStore.openAIWebDashboardFetchTimeout(didImportCookies: false) == 25)
-        #expect(UsageStore.openAIWebDashboardFetchTimeout(didImportCookies: true) == 25)
-        #expect(UsageStore.openAIWebRetryDashboardFetchTimeout(afterCookieImport: false) == 8)
-        #expect(UsageStore.openAIWebRetryDashboardFetchTimeout(afterCookieImport: true) == 25)
+        #expect(OpenAIWebStore.dashboardFetchTimeout(didImportCookies: false) == 25)
+        #expect(OpenAIWebStore.dashboardFetchTimeout(didImportCookies: true) == 25)
+        #expect(OpenAIWebStore.retryDashboardFetchTimeout(afterCookieImport: false) == 8)
+        #expect(OpenAIWebStore.retryDashboardFetchTimeout(afterCookieImport: true) == 25)
     }
 
     private func makeSettingsStore(suite: String) -> SettingsStore {

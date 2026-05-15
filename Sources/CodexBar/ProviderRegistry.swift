@@ -30,8 +30,13 @@ struct ProviderRegistry {
         specs.reserveCapacity(UsageProvider.allCases.count)
 
         for provider in UsageProvider.allCases {
+            guard let meta = metadata[provider] else {
+                CodexBarLog.logger(LogCategories.app)
+                    .error("ProviderRegistry: missing metadata for \(provider.rawValue); skipping.")
+                assertionFailure("Missing metadata for \(provider.rawValue) in ProviderRegistry.makeSpecs")
+                continue
+            }
             let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
-            let meta = metadata[provider]!
             let spec = ProviderSpec(
                 style: descriptor.branding.iconStyle,
                 isEnabled: { settings.isProviderEnabled(provider: provider, metadata: meta) },
@@ -98,6 +103,10 @@ struct ProviderRegistry {
             override: tokenOverride)
         var env = ProviderConfigEnvironment.applyAPIKeyOverride(
             base: base,
+            provider: provider,
+            config: settings.providerConfig(for: provider))
+        env = ProviderConfigEnvironment.applyBaseURLOverride(
+            base: env,
             provider: provider,
             config: settings.providerConfig(for: provider))
         // If token account is selected, use its token instead of config's apiKey

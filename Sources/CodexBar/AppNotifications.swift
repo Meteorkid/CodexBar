@@ -19,7 +19,7 @@ final class AppNotifications {
         _ = self.ensureAuthorizationTask()
     }
 
-    func post(idPrefix: String, title: String, body: String, badge: NSNumber? = nil) {
+    func post(idPrefix: String, title: String, body: String, badge: NSNumber? = nil, sound: UNNotificationSound? = .default) {
         guard !Self.isRunningUnderTests else { return }
         let center = self.centerProvider()
         let logger = self.logger
@@ -34,7 +34,7 @@ final class AppNotifications {
             let content = UNMutableNotificationContent()
             content.title = title
             content.body = body
-            content.sound = .default
+            content.sound = sound
             content.badge = badge
 
             let request = UNNotificationRequest(

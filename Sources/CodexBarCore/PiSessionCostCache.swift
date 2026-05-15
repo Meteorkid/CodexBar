@@ -4,7 +4,8 @@ enum PiSessionCostCacheIO {
     private static let artifactVersion = 1
 
     private static func defaultCacheRoot() -> URL {
-        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
         return root.appendingPathComponent("CodexBar", isDirectory: true)
     }
 

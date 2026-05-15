@@ -290,6 +290,15 @@ private struct ProviderSwitchChip: View {
         case .doubao: "Doubao"
         case .ernie: "ERNIE"
         case .mimo: "MiMo"
+        case .openai: "OpenAI API"
+        case .manus: "Manus"
+        case .moonshot: "Moonshot"
+        case .windsurf: "Windsurf"
+        case .crof: "Crof"
+        case .venice: "Venice"
+        case .commandcode: "CmdCode"
+        case .stepfun: "StepFun"
+        case .bedrock: "Bedrock"
         }
     }
 }
@@ -665,6 +674,24 @@ enum WidgetColors {
             Color(red: 38 / 255, green: 115 / 255, blue: 217 / 255) // ERNIE blue
         case .mimo:
             Color(red: 1.0, green: 140 / 255, blue: 0) // MiMo orange
+        case .openai:
+            Color(red: 16 / 255, green: 163 / 255, blue: 127 / 255) // OpenAI green
+        case .manus:
+            Color(red: 88 / 255, green: 86 / 255, blue: 214 / 255) // Manus purple
+        case .moonshot:
+            Color(red: 254 / 255, green: 96 / 255, blue: 60 / 255) // Moonshot orange
+        case .windsurf:
+            Color(red: 0 / 255, green: 140 / 255, blue: 190 / 255) // Windsurf teal
+        case .crof:
+            Color(red: 100 / 255, green: 200 / 255, blue: 100 / 255) // Crof green
+        case .venice:
+            Color(red: 136 / 255, green: 136 / 255, blue: 136 / 255) // Venice gray
+        case .commandcode:
+            Color(red: 180 / 255, green: 120 / 255, blue: 255 / 255) // CommandCode purple
+        case .stepfun:
+            Color(red: 33 / 255, green: 150 / 255, blue: 243 / 255) // StepFun blue
+        case .bedrock:
+            Color(red: 255 / 255, green: 153 / 255, blue: 0 / 255) // Bedrock orange
         }
     }
 }

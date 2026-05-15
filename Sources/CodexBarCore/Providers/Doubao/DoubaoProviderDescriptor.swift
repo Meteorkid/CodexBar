@@ -18,7 +18,7 @@ public enum DoubaoProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show Doubao usage",
                 cliName: "doubao",
-                defaultEnabled: false,
+                defaultEnabled: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -55,7 +55,8 @@ struct DoubaoAPIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw DoubaoUsageError.missingCredentials
         }
-        let usage = try await DoubaoUsageFetcher.verifyAPI(apiKey: apiKey)
+        let baseURL = DoubaoSettingsReader.baseURL(environment: context.env)
+        let usage = try await DoubaoUsageFetcher.verifyAPI(apiKey: apiKey, baseURL: baseURL)
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "api")

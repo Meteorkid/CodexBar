@@ -66,7 +66,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
 @Observable
 final class SettingsStore {
     static let sharedDefaults = AppGroupSupport.sharedDefaults()
-    static let mergedOverviewProviderLimit = 3
+    static let mergedOverviewProviderLimit = 50
     static let isRunningTests: Bool = {
         let env = ProcessInfo.processInfo.environment
         if env["XCTestConfigurationFilePath"] != nil { return true }
@@ -259,6 +259,14 @@ extension SettingsStore {
         let randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         let confettiOnWeeklyLimitResetsEnabled = userDefaults.object(
             forKey: "confettiOnWeeklyLimitResetsEnabled") as? Bool ?? false
+        let quotaWarningNotificationsEnabled = userDefaults.object(forKey: "quotaWarningNotificationsEnabled") as? Bool ?? true
+        let quotaWarningSessionEnabled = userDefaults.object(forKey: "quotaWarningSessionEnabled") as? Bool ?? false
+        let quotaWarningWeeklyEnabled = userDefaults.object(forKey: "quotaWarningWeeklyEnabled") as? Bool ?? false
+        let quotaWarningSoundEnabled = userDefaults.object(forKey: "quotaWarningSoundEnabled") as? Bool ?? false
+        let quotaWarningMarkersVisible = userDefaults.object(forKey: "quotaWarningMarkersVisible") as? Bool ?? true
+        let quotaWarningThresholdsRaw = userDefaults.array(forKey: "quotaWarningThresholdsRaw") as? [Int] ?? QuotaWarningThresholds.defaults
+        let providerChangelogLinksEnabled = userDefaults.object(
+            forKey: "providerChangelogLinksEnabled") as? Bool ?? false
         let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
         let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
         let claudeOAuthKeychainReadStrategyRaw = userDefaults.string(forKey: "claudeOAuthKeychainReadStrategy")
@@ -308,6 +316,13 @@ extension SettingsStore {
             hidePersonalInfo: hidePersonalInfo,
             randomBlinkEnabled: randomBlinkEnabled,
             confettiOnWeeklyLimitResetsEnabled: confettiOnWeeklyLimitResetsEnabled,
+            quotaWarningNotificationsEnabled: quotaWarningNotificationsEnabled,
+            quotaWarningSessionEnabled: quotaWarningSessionEnabled,
+            quotaWarningWeeklyEnabled: quotaWarningWeeklyEnabled,
+            quotaWarningSoundEnabled: quotaWarningSoundEnabled,
+            quotaWarningMarkersVisible: quotaWarningMarkersVisible,
+            quotaWarningThresholdsRaw: quotaWarningThresholdsRaw,
+            providerChangelogLinksEnabled: providerChangelogLinksEnabled,
             menuBarShowsHighestUsage: menuBarShowsHighestUsage,
             claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,

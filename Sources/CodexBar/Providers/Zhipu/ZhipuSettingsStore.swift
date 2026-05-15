@@ -2,6 +2,25 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var zhipuBaseURL: String {
+        get { self.configSnapshot.providerConfig(for: .zhipu)?.sanitizedBaseURL ?? "" }
+        set {
+            self.updateProviderConfig(provider: .zhipu) { entry in
+                entry.apiBaseURL = self.normalizedConfigValue(newValue)
+            }
+        }
+    }
+
+    var zhipuAPIToken: String {
+        get { self.configSnapshot.providerConfig(for: .zhipu)?.sanitizedAPIKey ?? "" }
+        set {
+            self.updateProviderConfig(provider: .zhipu) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+            }
+            self.logSecretUpdate(provider: .zhipu, field: "apiKey", value: newValue)
+        }
+    }
+
     var zhipuManualCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .zhipu)?.sanitizedCookieHeader ?? "" }
         set {

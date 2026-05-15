@@ -15,6 +15,7 @@ struct MiMoProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.mimoAPIToken
         _ = settings.mimoCookieSource
         _ = settings.mimoManualCookieHeader
     }
@@ -29,7 +30,7 @@ struct MiMoProviderImplementation: ProviderImplementation {
         if MiMoSettingsReader.apiKey(environment: context.environment) != nil {
             return true
         }
-        return !context.settings.tokenAccounts(for: .mimo).isEmpty
+        return !context.settings.mimoAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     @MainActor
@@ -68,6 +69,38 @@ struct MiMoProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "mimo-base-url",
+                title: "API base URL",
+                subtitle: "Override the default API endpoint.",
+                kind: .plain,
+                placeholder: "https://token-plan-sgp.xiaomimimo.com/anthropic",
+                binding: context.stringBinding(\.mimoBaseURL),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
+                id: "mimo-api-key",
+                title: "API key",
+                subtitle: "Stored in ~/.codexbar/config.json. "
+                    + "Get your key from platform.xiaomimimo.com.",
+                kind: .secure,
+                placeholder: "tp-...",
+                binding: context.stringBinding(\.mimoAPIToken),
+                actions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "mimo-open-platform",
+                        title: "Open Platform",
+                        style: .link,
+                        isVisible: nil,
+                        perform: {
+                            if let url = URL(string: "https://platform.xiaomimimo.com") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }),
+                ],
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "mimo-cookie",
                 title: "",

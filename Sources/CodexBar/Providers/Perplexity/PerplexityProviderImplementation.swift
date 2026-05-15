@@ -24,6 +24,7 @@ struct PerplexityProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.perplexitySessionToken
         _ = settings.perplexityCookieSource
         _ = settings.perplexityManualCookieHeader
     }
@@ -69,6 +70,28 @@ struct PerplexityProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "perplexity-session-token",
+                title: "Session token",
+                subtitle: "Stored in ~/.codexbar/config.json. "
+                    + "Paste the __Secure-next-auth.session-token value.",
+                kind: .secure,
+                placeholder: "ey...",
+                binding: context.stringBinding(\.perplexitySessionToken),
+                actions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "perplexity-open-usage",
+                        title: "Open Usage Page",
+                        style: .link,
+                        isVisible: nil,
+                        perform: {
+                            if let url = URL(string: "https://www.perplexity.ai/account/usage") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }),
+                ],
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "perplexity-cookie",
                 title: "",

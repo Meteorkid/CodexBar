@@ -2,6 +2,16 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var perplexitySessionToken: String {
+        get { self.configSnapshot.providerConfig(for: .perplexity)?.sanitizedAPIKey ?? "" }
+        set {
+            self.updateProviderConfig(provider: .perplexity) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+            }
+            self.logSecretUpdate(provider: .perplexity, field: "apiKey", value: newValue)
+        }
+    }
+
     var perplexityManualCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .perplexity)?.sanitizedCookieHeader ?? "" }
         set {

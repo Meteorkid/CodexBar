@@ -2,6 +2,25 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var mimoBaseURL: String {
+        get { self.configSnapshot.providerConfig(for: .mimo)?.sanitizedBaseURL ?? "" }
+        set {
+            self.updateProviderConfig(provider: .mimo) { entry in
+                entry.apiBaseURL = self.normalizedConfigValue(newValue)
+            }
+        }
+    }
+
+    var mimoAPIToken: String {
+        get { self.configSnapshot.providerConfig(for: .mimo)?.sanitizedAPIKey ?? "" }
+        set {
+            self.updateProviderConfig(provider: .mimo) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+            }
+            self.logSecretUpdate(provider: .mimo, field: "apiKey", value: newValue)
+        }
+    }
+
     var mimoManualCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .mimo)?.sanitizedCookieHeader ?? "" }
         set {

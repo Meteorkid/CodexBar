@@ -18,7 +18,7 @@ public enum KimiProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show Kimi usage",
                 cliName: "kimi",
-                defaultEnabled: false,
+                defaultEnabled: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -69,7 +69,8 @@ struct KimiWebFetchStrategy: ProviderFetchStrategy {
             throw KimiAPIError.missingToken
         }
 
-        let snapshot = try await KimiUsageFetcher.fetchUsage(authToken: token)
+        let baseURL = KimiSettingsReader.baseURL(environment: context.env)
+        let snapshot = try await KimiUsageFetcher.fetchUsage(authToken: token, baseURL: baseURL)
         return self.makeResult(
             usage: snapshot.toUsageSnapshot(),
             sourceLabel: "web")

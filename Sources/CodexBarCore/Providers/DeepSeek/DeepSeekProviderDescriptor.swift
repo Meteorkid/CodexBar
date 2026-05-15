@@ -18,7 +18,7 @@ public enum DeepSeekProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show DeepSeek usage",
                 cliName: "deepseek",
-                defaultEnabled: false,
+                defaultEnabled: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -54,7 +54,8 @@ struct DeepSeekAPIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw DeepSeekUsageError.missingCredentials
         }
-        let usage = try await DeepSeekUsageFetcher.fetchUsage(apiKey: apiKey)
+        let baseURL = DeepSeekSettingsReader.baseURL(environment: context.env)
+        let usage = try await DeepSeekUsageFetcher.fetchUsage(apiKey: apiKey, baseURL: baseURL)
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "api")

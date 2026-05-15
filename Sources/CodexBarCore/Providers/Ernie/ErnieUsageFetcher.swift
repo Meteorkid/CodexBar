@@ -133,10 +133,13 @@ public struct ErnieUsageFetcher: Sendable {
     private static let balanceURL =
         URL(string: "https://console.bce.baidu.com/qianfan/api/resourcepack/v1/billing/query")!
 
-    public static func verifyAPI(apiKey: String) async throws -> ErnieUsageSnapshot {
+    public static func verifyAPI(
+        apiKey: String,
+        baseURL: URL = URL(string: "https://qianfan.baidubce.com/v2")!) async throws -> ErnieUsageSnapshot
+    {
         do {
             let result = try await OpenAICompatibleVerifier.verify(
-                baseURL: self.baseURL,
+                baseURL: baseURL,
                 apiKey: apiKey,
                 logger: self.log)
             return ErnieUsageSnapshot(

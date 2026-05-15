@@ -2,6 +2,25 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var ernieBaseURL: String {
+        get { self.configSnapshot.providerConfig(for: .ernie)?.sanitizedBaseURL ?? "" }
+        set {
+            self.updateProviderConfig(provider: .ernie) { entry in
+                entry.apiBaseURL = self.normalizedConfigValue(newValue)
+            }
+        }
+    }
+
+    var ernieAPIToken: String {
+        get { self.configSnapshot.providerConfig(for: .ernie)?.sanitizedAPIKey ?? "" }
+        set {
+            self.updateProviderConfig(provider: .ernie) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+            }
+            self.logSecretUpdate(provider: .ernie, field: "apiKey", value: newValue)
+        }
+    }
+
     var ernieManualCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .ernie)?.sanitizedCookieHeader ?? "" }
         set {

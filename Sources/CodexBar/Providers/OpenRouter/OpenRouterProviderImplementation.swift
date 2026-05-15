@@ -15,6 +15,7 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.openRouterBaseURL
         _ = settings.openRouterAPIToken
     }
 
@@ -40,6 +41,16 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "openrouter-base-url",
+                title: "API base URL",
+                subtitle: "Override the default API endpoint.",
+                kind: .plain,
+                placeholder: "https://openrouter.ai/api/v1",
+                binding: context.stringBinding(\.openRouterBaseURL),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "openrouter-api-key",
                 title: "API key",

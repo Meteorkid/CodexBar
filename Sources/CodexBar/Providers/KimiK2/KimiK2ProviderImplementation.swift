@@ -16,6 +16,16 @@ struct KimiK2ProviderImplementation: ProviderImplementation {
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
             ProviderSettingsFieldDescriptor(
+                id: "kimi-k2-base-url",
+                title: "API base URL",
+                subtitle: "Override the default API endpoint.",
+                kind: .plain,
+                placeholder: "https://api.moonshot.cn",
+                binding: context.stringBinding(\.kimiK2BaseURL),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
                 id: "kimi-k2-api-token",
                 title: "API key",
                 subtitle: "Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai.",

@@ -15,6 +15,7 @@ struct DoubaoProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.doubaoAPIToken
         _ = settings.doubaoCookieSource
         _ = settings.doubaoManualCookieHeader
     }
@@ -29,7 +30,7 @@ struct DoubaoProviderImplementation: ProviderImplementation {
         if DoubaoSettingsReader.apiKey(environment: context.environment) != nil {
             return true
         }
-        return !context.settings.tokenAccounts(for: .doubao).isEmpty
+        return !context.settings.doubaoAPIToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     @MainActor
@@ -68,6 +69,38 @@ struct DoubaoProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "doubao-base-url",
+                title: "API base URL",
+                subtitle: "Override the default API endpoint.",
+                kind: .plain,
+                placeholder: "https://ark.cn-beijing.volces.com/api/v3",
+                binding: context.stringBinding(\.doubaoBaseURL),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
+                id: "doubao-api-key",
+                title: "API key",
+                subtitle: "Stored in ~/.codexbar/config.json. "
+                    + "Get your key from console.volcengine.com/ark.",
+                kind: .secure,
+                placeholder: "sk-...",
+                binding: context.stringBinding(\.doubaoAPIToken),
+                actions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "doubao-open-api",
+                        title: "Open API Keys",
+                        style: .link,
+                        isVisible: nil,
+                        perform: {
+                            if let url = URL(string: "https://console.volcengine.com/ark/api-key") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }),
+                ],
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "doubao-cookie",
                 title: "",

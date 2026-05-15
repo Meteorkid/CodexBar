@@ -130,6 +130,8 @@ struct MenuContent: View {
             self.actions.quit()
         case let .copyError(message):
             self.actions.copyError(message)
+        case .changelog:
+            self.actions.openChangelog()
         }
     }
 }
@@ -140,6 +142,7 @@ struct MenuActions {
     let refreshAugmentSession: () -> Void
     let openDashboard: () -> Void
     let openStatusPage: () -> Void
+    let openChangelog: () -> Void
     let addCodexAccount: () -> Void
     let switchAccount: (UsageProvider) -> Void
     let openTerminal: (String) -> Void

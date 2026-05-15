@@ -84,6 +84,15 @@ enum ProviderChoice: String, AppEnum {
         case .doubao: return nil // Doubao not yet supported in widgets
         case .ernie: return nil // ERNIE not yet supported in widgets
         case .mimo: return nil // MiMo not yet supported in widgets
+        case .openai: return nil // OpenAI API not yet supported in widgets
+        case .manus: return nil // Manus not yet supported in widgets
+        case .moonshot: return nil // Moonshot not yet supported in widgets
+        case .windsurf: return nil // Windsurf not yet supported in widgets
+        case .crof: return nil // Crof not yet supported in widgets
+        case .venice: return nil // Venice not yet supported in widgets
+        case .commandcode: return nil // CommandCode not yet supported in widgets
+        case .stepfun: return nil // StepFun not yet supported in widgets
+        case .bedrock: return nil // Bedrock not yet supported in widgets
         }
     }
 }

@@ -26,7 +26,12 @@ public struct ProviderSettingsSnapshot: Sendable {
         zhipu: ZhipuProviderSettings? = nil,
         doubao: DoubaoProviderSettings? = nil,
         ernie: ErnieProviderSettings? = nil,
-        mimo: MiMoProviderSettings? = nil) -> ProviderSettingsSnapshot
+        mimo: MiMoProviderSettings? = nil,
+        manus: ManusProviderSettings? = nil,
+        moonshot: MoonshotProviderSettings? = nil,
+        windsurf: WindsurfProviderSettings? = nil,
+        stepfun: StepFunProviderSettings? = nil,
+        commandcode: CommandCodeProviderSettings? = nil) -> ProviderSettingsSnapshot
     {
         ProviderSettingsSnapshot(
             debugMenuEnabled: debugMenuEnabled,
@@ -53,7 +58,12 @@ public struct ProviderSettingsSnapshot: Sendable {
             zhipu: zhipu,
             doubao: doubao,
             ernie: ernie,
-            mimo: mimo)
+            mimo: mimo,
+            manus: manus,
+            moonshot: moonshot,
+            windsurf: windsurf,
+            stepfun: stepfun,
+            commandcode: commandcode)
     }
 
     public struct CodexProviderSettings: Sendable {
@@ -240,6 +250,69 @@ public struct ProviderSettingsSnapshot: Sendable {
         }
     }
 
+    public struct ManusProviderSettings: Sendable {
+        public let cookieSource: ProviderCookieSource
+        public let manualCookieHeader: String?
+
+        public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?) {
+            self.cookieSource = cookieSource
+            self.manualCookieHeader = manualCookieHeader
+        }
+    }
+
+    public struct MoonshotProviderSettings: Sendable {
+        public let region: MoonshotRegion?
+
+        public init(region: MoonshotRegion? = nil) {
+            self.region = region
+        }
+    }
+
+    public struct WindsurfProviderSettings: Sendable {
+        public let usageDataSource: WindsurfUsageDataSource
+        public let cookieSource: ProviderCookieSource
+        public let manualCookieHeader: String?
+
+        public init(
+            usageDataSource: WindsurfUsageDataSource = .auto,
+            cookieSource: ProviderCookieSource,
+            manualCookieHeader: String?)
+        {
+            self.usageDataSource = usageDataSource
+            self.cookieSource = cookieSource
+            self.manualCookieHeader = manualCookieHeader
+        }
+    }
+
+    public struct StepFunProviderSettings: Sendable {
+        public let cookieSource: ProviderCookieSource
+        public let manualToken: String
+        public let username: String
+        public let password: String
+
+        public init(
+            cookieSource: ProviderCookieSource = .auto,
+            manualToken: String = "",
+            username: String = "",
+            password: String = "")
+        {
+            self.cookieSource = cookieSource
+            self.manualToken = manualToken
+            self.username = username
+            self.password = password
+        }
+    }
+
+    public struct CommandCodeProviderSettings: Sendable {
+        public let cookieSource: ProviderCookieSource
+        public let manualCookieHeader: String?
+
+        public init(cookieSource: ProviderCookieSource, manualCookieHeader: String?) {
+            self.cookieSource = cookieSource
+            self.manualCookieHeader = manualCookieHeader
+        }
+    }
+
     public struct AugmentProviderSettings: Sendable {
         public let cookieSource: ProviderCookieSource
         public let manualCookieHeader: String?
@@ -333,6 +406,11 @@ public struct ProviderSettingsSnapshot: Sendable {
     public let doubao: DoubaoProviderSettings?
     public let ernie: ErnieProviderSettings?
     public let mimo: MiMoProviderSettings?
+    public let manus: ManusProviderSettings?
+    public let moonshot: MoonshotProviderSettings?
+    public let windsurf: WindsurfProviderSettings?
+    public let stepfun: StepFunProviderSettings?
+    public let commandcode: CommandCodeProviderSettings?
 
     public var jetbrainsIDEBasePath: String? {
         self.jetbrains?.ideBasePath
@@ -363,7 +441,12 @@ public struct ProviderSettingsSnapshot: Sendable {
         zhipu: ZhipuProviderSettings? = nil,
         doubao: DoubaoProviderSettings? = nil,
         ernie: ErnieProviderSettings? = nil,
-        mimo: MiMoProviderSettings? = nil)
+        mimo: MiMoProviderSettings? = nil,
+        manus: ManusProviderSettings? = nil,
+        moonshot: MoonshotProviderSettings? = nil,
+        windsurf: WindsurfProviderSettings? = nil,
+        stepfun: StepFunProviderSettings? = nil,
+        commandcode: CommandCodeProviderSettings? = nil)
     {
         self.debugMenuEnabled = debugMenuEnabled
         self.debugKeepCLISessionsAlive = debugKeepCLISessionsAlive
@@ -390,6 +473,11 @@ public struct ProviderSettingsSnapshot: Sendable {
         self.doubao = doubao
         self.ernie = ernie
         self.mimo = mimo
+        self.manus = manus
+        self.moonshot = moonshot
+        self.windsurf = windsurf
+        self.stepfun = stepfun
+        self.commandcode = commandcode
     }
 }
 
@@ -417,6 +505,11 @@ public enum ProviderSettingsSnapshotContribution: Sendable {
     case doubao(ProviderSettingsSnapshot.DoubaoProviderSettings)
     case ernie(ProviderSettingsSnapshot.ErnieProviderSettings)
     case mimo(ProviderSettingsSnapshot.MiMoProviderSettings)
+    case manus(ProviderSettingsSnapshot.ManusProviderSettings)
+    case moonshot(ProviderSettingsSnapshot.MoonshotProviderSettings)
+    case windsurf(ProviderSettingsSnapshot.WindsurfProviderSettings)
+    case stepfun(ProviderSettingsSnapshot.StepFunProviderSettings)
+    case commandcode(ProviderSettingsSnapshot.CommandCodeProviderSettings)
 }
 
 public struct ProviderSettingsSnapshotBuilder: Sendable {
@@ -445,6 +538,11 @@ public struct ProviderSettingsSnapshotBuilder: Sendable {
     public var doubao: ProviderSettingsSnapshot.DoubaoProviderSettings?
     public var ernie: ProviderSettingsSnapshot.ErnieProviderSettings?
     public var mimo: ProviderSettingsSnapshot.MiMoProviderSettings?
+    public var manus: ProviderSettingsSnapshot.ManusProviderSettings?
+    public var moonshot: ProviderSettingsSnapshot.MoonshotProviderSettings?
+    public var windsurf: ProviderSettingsSnapshot.WindsurfProviderSettings?
+    public var stepfun: ProviderSettingsSnapshot.StepFunProviderSettings?
+    public var commandcode: ProviderSettingsSnapshot.CommandCodeProviderSettings?
 
     public init(debugMenuEnabled: Bool = false, debugKeepCLISessionsAlive: Bool = false) {
         self.debugMenuEnabled = debugMenuEnabled
@@ -476,6 +574,11 @@ public struct ProviderSettingsSnapshotBuilder: Sendable {
         case let .doubao(value): self.doubao = value
         case let .ernie(value): self.ernie = value
         case let .mimo(value): self.mimo = value
+        case let .manus(value): self.manus = value
+        case let .moonshot(value): self.moonshot = value
+        case let .windsurf(value): self.windsurf = value
+        case let .stepfun(value): self.stepfun = value
+        case let .commandcode(value): self.commandcode = value
         }
     }
 
@@ -505,6 +608,11 @@ public struct ProviderSettingsSnapshotBuilder: Sendable {
             zhipu: self.zhipu,
             doubao: self.doubao,
             ernie: self.ernie,
-            mimo: self.mimo)
+            mimo: self.mimo,
+            manus: self.manus,
+            moonshot: self.moonshot,
+            windsurf: self.windsurf,
+            stepfun: self.stepfun,
+            commandcode: self.commandcode)
     }
 }

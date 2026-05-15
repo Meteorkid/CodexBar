@@ -24,7 +24,8 @@ public enum GeminiProviderDescriptor {
                 dashboardURL: "https://gemini.google.com",
                 statusPageURL: nil,
                 statusLinkURL: "https://www.google.com/appsstatus/dashboard/products/npdyhgECDJ6tB66MxXyo/history",
-                statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo"),
+                statusWorkspaceProductID: "npdyhgECDJ6tB66MxXyo",
+                changelogURL: "https://github.com/google-gemini/gemini-cli/releases"),
             branding: ProviderBranding(
                 iconStyle: .gemini,
                 iconResourceName: "ProviderIcon-gemini",

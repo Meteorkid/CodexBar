@@ -22,6 +22,13 @@ struct SettingsDefaultsState {
     var hidePersonalInfo: Bool
     var randomBlinkEnabled: Bool
     var confettiOnWeeklyLimitResetsEnabled: Bool
+    var quotaWarningNotificationsEnabled: Bool
+    var quotaWarningSessionEnabled: Bool
+    var quotaWarningWeeklyEnabled: Bool
+    var quotaWarningSoundEnabled: Bool
+    var quotaWarningMarkersVisible: Bool
+    var quotaWarningThresholdsRaw: [Int]
+    var providerChangelogLinksEnabled: Bool
     var menuBarShowsHighestUsage: Bool
     var claudeOAuthKeychainPromptModeRaw: String?
     var claudeOAuthKeychainReadStrategyRaw: String?

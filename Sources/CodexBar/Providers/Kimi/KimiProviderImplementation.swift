@@ -15,6 +15,7 @@ struct KimiProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.kimiAPIToken
         _ = settings.kimiCookieSource
         _ = settings.kimiManualCookieHeader
     }
@@ -60,6 +61,38 @@ struct KimiProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsFields(context: ProviderSettingsContext) -> [ProviderSettingsFieldDescriptor] {
         [
+            ProviderSettingsFieldDescriptor(
+                id: "kimi-base-url",
+                title: "API base URL",
+                subtitle: "Override the default API endpoint.",
+                kind: .plain,
+                placeholder: "https://www.kimi.com",
+                binding: context.stringBinding(\.kimiBaseURL),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
+                id: "kimi-api-key",
+                title: "API key",
+                subtitle: "Stored in ~/.codexbar/config.json. "
+                    + "Get your key from platform.moonshot.cn.",
+                kind: .secure,
+                placeholder: "sk-...",
+                binding: context.stringBinding(\.kimiAPIToken),
+                actions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "kimi-open-api",
+                        title: "Open API Keys",
+                        style: .link,
+                        isVisible: nil,
+                        perform: {
+                            if let url = URL(string: "https://platform.moonshot.cn/console/api-keys") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }),
+                ],
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "kimi-cookie",
                 title: "",

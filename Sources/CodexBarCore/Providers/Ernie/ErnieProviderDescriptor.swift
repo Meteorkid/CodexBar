@@ -18,7 +18,7 @@ public enum ErnieProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show ERNIE usage",
                 cliName: "ernie",
-                defaultEnabled: false,
+                defaultEnabled: true,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
@@ -55,7 +55,8 @@ struct ErnieAPIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw ErnieUsageError.missingCredentials
         }
-        let usage = try await ErnieUsageFetcher.verifyAPI(apiKey: apiKey)
+        let baseURL = ErnieSettingsReader.baseURL(environment: context.env)
+        let usage = try await ErnieUsageFetcher.verifyAPI(apiKey: apiKey, baseURL: baseURL)
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "api")

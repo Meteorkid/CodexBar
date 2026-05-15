@@ -52,8 +52,11 @@ public enum ProviderDescriptorRegistry {
 
     private static let lock = NSLock()
     private static let store = Store()
-    private static let descriptorsByID: [UsageProvider: ProviderDescriptor] = [
+
+    /// 用于验证完整性的全集映射。新增 Provider 时需同时添加条目到此字典。
+    private static let allDescriptors: [UsageProvider: ProviderDescriptor] = [
         .codex: CodexProviderDescriptor.descriptor,
+        .openai: OpenAIAPIProviderDescriptor.descriptor,
         .claude: ClaudeProviderDescriptor.descriptor,
         .cursor: CursorProviderDescriptor.descriptor,
         .opencode: OpenCodeProviderDescriptor.descriptor,
@@ -65,6 +68,7 @@ public enum ProviderDescriptorRegistry {
         .copilot: CopilotProviderDescriptor.descriptor,
         .zai: ZaiProviderDescriptor.descriptor,
         .minimax: MiniMaxProviderDescriptor.descriptor,
+        .manus: ManusProviderDescriptor.descriptor,
         .kimi: KimiProviderDescriptor.descriptor,
         .kilo: KiloProviderDescriptor.descriptor,
         .kiro: KiroProviderDescriptor.descriptor,
@@ -72,25 +76,35 @@ public enum ProviderDescriptorRegistry {
         .augment: AugmentProviderDescriptor.descriptor,
         .jetbrains: JetBrainsProviderDescriptor.descriptor,
         .kimik2: KimiK2ProviderDescriptor.descriptor,
+        .moonshot: MoonshotProviderDescriptor.descriptor,
         .amp: AmpProviderDescriptor.descriptor,
         .ollama: OllamaProviderDescriptor.descriptor,
         .synthetic: SyntheticProviderDescriptor.descriptor,
         .openrouter: OpenRouterProviderDescriptor.descriptor,
+        .windsurf: WindsurfProviderDescriptor.descriptor,
         .warp: WarpProviderDescriptor.descriptor,
         .perplexity: PerplexityProviderDescriptor.descriptor,
         .abacus: AbacusProviderDescriptor.descriptor,
         .mistral: MistralProviderDescriptor.descriptor,
         .deepseek: DeepSeekProviderDescriptor.descriptor,
         .codebuff: CodebuffProviderDescriptor.descriptor,
+        .crof: CrofProviderDescriptor.descriptor,
+        .venice: VeniceProviderDescriptor.descriptor,
+        .commandcode: CommandCodeProviderDescriptor.descriptor,
+        .stepfun: StepFunProviderDescriptor.descriptor,
+        .bedrock: BedrockProviderDescriptor.descriptor,
         .zhipu: ZhipuProviderDescriptor.descriptor,
         .doubao: DoubaoProviderDescriptor.descriptor,
         .ernie: ErnieProviderDescriptor.descriptor,
         .mimo: MiMoProviderDescriptor.descriptor,
     ]
+
+    /// 宏 `@ProviderDescriptorRegistration` 在模块加载时自动注册 descriptor。
+    /// 此处注册全集确保非宏路径（如测试）也能工作。
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {
-            guard let descriptor = descriptorsByID[provider] else {
-                preconditionFailure("Missing ProviderDescriptor for \(provider.rawValue)")
+            guard let descriptor = allDescriptors[provider] else {
+                fatalError("Missing ProviderDescriptor for \(provider.rawValue). Add an entry to allDescriptors.")
             }
             _ = ProviderDescriptorRegistry.register(descriptor)
         }

@@ -2,6 +2,25 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var kimiBaseURL: String {
+        get { self.configSnapshot.providerConfig(for: .kimi)?.sanitizedBaseURL ?? "" }
+        set {
+            self.updateProviderConfig(provider: .kimi) { entry in
+                entry.apiBaseURL = self.normalizedConfigValue(newValue)
+            }
+        }
+    }
+
+    var kimiAPIToken: String {
+        get { self.configSnapshot.providerConfig(for: .kimi)?.sanitizedAPIKey ?? "" }
+        set {
+            self.updateProviderConfig(provider: .kimi) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+            }
+            self.logSecretUpdate(provider: .kimi, field: "apiKey", value: newValue)
+        }
+    }
+
     var kimiManualCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .kimi)?.sanitizedCookieHeader ?? "" }
         set {
