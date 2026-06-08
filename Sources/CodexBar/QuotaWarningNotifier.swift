@@ -4,7 +4,7 @@ import Foundation
 
 @MainActor
 final class QuotaWarningNotifier {
-    private let logger = CodexBarLog.logger(LogCategories.quotaWarning)
+    private let logger = CodexBarLog.logger(LogCategories.quotaWarningNotifications)
 
     private var lastSessionRemaining: [UsageProvider: Double] = [:]
     private var lastWeeklyRemaining: [UsageProvider: Double] = [:]
@@ -89,6 +89,6 @@ final class QuotaWarningNotifier {
             idPrefix: "quota-warning-\(provider.rawValue)-\(windowLabel)-\(thresholdText)",
             title: title,
             body: body,
-            sound: sound)
+            soundEnabled: sound != nil)
     }
 }
