@@ -11,10 +11,10 @@ private final class UsageHistoryMenuHostingView<Content: View>: NSHostingView<Co
 extension StatusItemController {
     @discardableResult
     func addUsageHistoryMenuItemIfNeeded(to menu: NSMenu, provider: UsageProvider, width: CGFloat) -> Bool {
-        guard let submenu = self.makeUsageHistorySubmenu(provider: provider) else { return false }
+        guard let submenu = self.makeUsageHistorySubmenu(provider: provider, width: width) else { return false }
         let item = self.makeMenuCardItem(
             HStack(spacing: 0) {
-                Text("Subscription Utilization")
+                Text(L("Subscription Utilization"))
                     .font(.system(size: NSFont.menuFont(ofSize: 0).pointSize))
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -24,6 +24,8 @@ extension StatusItemController {
             },
             id: "usageHistorySubmenu",
             width: width,
+            heightCacheScope: provider.rawValue,
+            heightCacheFingerprint: "usageHistorySubmenu:\(provider.rawValue)",
             submenu: submenu,
             submenuIndicatorAlignment: .trailing,
             submenuIndicatorTopPadding: 0)
@@ -31,9 +33,15 @@ extension StatusItemController {
         return true
     }
 
-    private func makeUsageHistorySubmenu(provider: UsageProvider) -> NSMenu? {
+    func makeUsageHistorySubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
         guard self.store.supportsPlanUtilizationHistory(for: provider) else { return nil }
         guard !self.store.shouldHidePlanUtilizationMenuItem(for: provider) else { return nil }
+        if let width {
+            return self.makeHostedSubviewPlaceholderMenu(
+                chartID: Self.usageHistoryChartID,
+                provider: provider,
+                width: width)
+        }
         return self.makeHostedSubviewPlaceholderMenu(chartID: Self.usageHistoryChartID, provider: provider)
     }
 
@@ -47,8 +55,9 @@ extension StatusItemController {
 
         if !Self.menuCardRenderingEnabled {
             let chartItem = NSMenuItem()
-            chartItem.isEnabled = false
+            chartItem.isEnabled = true
             chartItem.representedObject = Self.usageHistoryChartID
+            chartItem.toolTip = provider.rawValue
             submenu.addItem(chartItem)
             return true
         }
@@ -65,8 +74,9 @@ extension StatusItemController {
 
         let chartItem = NSMenuItem()
         chartItem.view = hosting
-        chartItem.isEnabled = false
+        chartItem.isEnabled = true
         chartItem.representedObject = Self.usageHistoryChartID
+        chartItem.toolTip = provider.rawValue
         submenu.addItem(chartItem)
         return true
     }

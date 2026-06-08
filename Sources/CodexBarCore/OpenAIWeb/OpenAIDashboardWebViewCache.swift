@@ -28,13 +28,41 @@ final class OpenAIDashboardWebViewCache {
         let preserveLoadedPageOnRelease: Bool
     }
 
+    @MainActor
+    private final class NavigationCancellationState {
+        private weak var webView: WKWebView?
+        private var delegate: NavigationDelegate?
+        private var isCancelled = false
+
+        func install(webView: WKWebView, delegate: NavigationDelegate) {
+            self.webView = webView
+            self.delegate = delegate
+            if self.isCancelled {
+                self.cancel()
+            }
+        }
+
+        func cancel() {
+            self.isCancelled = true
+            guard let webView, let delegate else { return }
+            delegate.cancel()
+            if webView.codexNavigationDelegate === delegate {
+                webView.stopLoading()
+                webView.navigationDelegate = nil
+                webView.codexNavigationDelegate = nil
+            }
+            self.delegate = nil
+            self.webView = nil
+        }
+    }
+
     private final class Entry {
         let webView: WKWebView
         let host: OffscreenWebViewHost
         var lastUsedAt: Date
         var isBusy: Bool
         var preservedPageExpiresAt: Date?
-        var preservedPageExpiryTask: Task<Void, Never>?
+        var preservedPageExpiryWorkItem: DispatchWorkItem?
 
         init(
             webView: WKWebView,
@@ -54,22 +82,22 @@ final class OpenAIDashboardWebViewCache {
             self.preservedPageExpiresAt = expiry
         }
 
-        func setPreservedPageExpiryTask(_ task: Task<Void, Never>?) {
-            self.preservedPageExpiryTask?.cancel()
-            self.preservedPageExpiryTask = task
+        func setPreservedPageExpiryWorkItem(_ workItem: DispatchWorkItem?) {
+            self.preservedPageExpiryWorkItem?.cancel()
+            self.preservedPageExpiryWorkItem = workItem
         }
 
         func clearPreservedPage() {
             self.preservedPageExpiresAt = nil
-            self.preservedPageExpiryTask?.cancel()
-            self.preservedPageExpiryTask = nil
+            self.preservedPageExpiryWorkItem?.cancel()
+            self.preservedPageExpiryWorkItem = nil
         }
 
         func consumePreservedPageReuseIfAvailable(now: Date) -> Bool {
             guard let preservedPageExpiresAt else { return false }
             self.preservedPageExpiresAt = nil
-            self.preservedPageExpiryTask?.cancel()
-            self.preservedPageExpiryTask = nil
+            self.preservedPageExpiryWorkItem?.cancel()
+            self.preservedPageExpiryWorkItem = nil
             return preservedPageExpiresAt > now
         }
 
@@ -86,6 +114,16 @@ final class OpenAIDashboardWebViewCache {
     /// Reuse the validated analytics page only for the immediate next handoff.
     private let preservedPageHandoffTimeout: TimeInterval = 5
     private let blankURL = URL(string: "about:blank")!
+    private let idlePageClearScript = """
+    (() => {
+      try {
+        document.documentElement.innerHTML = '';
+        return true;
+      } catch {
+        return false;
+      }
+    })();
+    """
     private let reusablePageResetScript = """
     (() => {
       try {
@@ -227,6 +265,7 @@ final class OpenAIDashboardWebViewCache {
         usageURL: URL,
         logger: ((String) -> Void)?,
         navigationTimeout: TimeInterval = 15,
+        allowTimeoutRetry: Bool = true,
         preserveLoadedPageOnRelease: Bool = false) async throws -> OpenAIDashboardWebViewLease
     {
         let deadline = Date().addingTimeInterval(max(navigationTimeout, 1))
@@ -236,7 +275,7 @@ final class OpenAIDashboardWebViewCache {
             logger: logger,
             deadline: deadline,
             options: .init(
-                allowTimeoutRetry: true,
+                allowTimeoutRetry: allowTimeoutRetry,
                 preserveLoadedPageOnRelease: preserveLoadedPageOnRelease))
     }
 
@@ -420,6 +459,7 @@ final class OpenAIDashboardWebViewCache {
         // Detach the heavyweight ChatGPT SPA as soon as a scrape completes. Keeping the WebView object around
         // still helps with immediate reuse, but letting chatgpt.com remain the active document is too expensive.
         webView.stopLoading()
+        webView.evaluateJavaScript(self.idlePageClearScript, completionHandler: nil)
         _ = webView.load(URLRequest(url: self.blankURL))
         host.hide()
     }
@@ -486,14 +526,26 @@ final class OpenAIDashboardWebViewCache {
             Self.log.debug("OpenAI preserved page reset failed; reloading usage URL")
         }
 
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
-            let delegate = NavigationDelegate { result in
-                cont.resume(with: result)
+        try Task.checkCancellation()
+        let cancellationState = NavigationCancellationState()
+        try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                let delegate = NavigationDelegate { result in
+                    cont.resume(with: result)
+                }
+                webView.navigationDelegate = delegate
+                webView.codexNavigationDelegate = delegate
+                cancellationState.install(webView: webView, delegate: delegate)
+                delegate.armTimeout(seconds: timeout)
+                _ = webView.load(OpenAIDashboardFetcher.usageURLRequest(url: usageURL))
+                if Task.isCancelled {
+                    cancellationState.cancel()
+                }
             }
-            webView.navigationDelegate = delegate
-            webView.codexNavigationDelegate = delegate
-            delegate.armTimeout(seconds: timeout)
-            _ = webView.load(OpenAIDashboardFetcher.usageURLRequest(url: usageURL))
+        } onCancel: {
+            Task { @MainActor in
+                cancellationState.cancel()
+            }
         }
     }
 
@@ -546,12 +598,13 @@ final class OpenAIDashboardWebViewCache {
         expiresAt: Date)
     {
         let delay = max(0, expiresAt.timeIntervalSinceNow)
-        let task = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled else { return }
-            self?.expirePreservedPageIfNeeded(for: key, expectedExpiry: expiresAt)
+        let workItem = DispatchWorkItem { [weak self] in
+            MainActor.assumeIsolated {
+                self?.expirePreservedPageIfNeeded(for: key, expectedExpiry: expiresAt)
+            }
         }
-        entry.setPreservedPageExpiryTask(task)
+        entry.setPreservedPageExpiryWorkItem(workItem)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
     }
 
     private func expirePreservedPageIfNeeded(for key: ObjectIdentifier, expectedExpiry: Date) {

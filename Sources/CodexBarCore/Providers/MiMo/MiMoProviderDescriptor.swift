@@ -1,129 +1,178 @@
 import CodexBarMacroSupport
 import Foundation
 
+#if os(macOS)
+import SweetCookieKit
+#endif
+
 @ProviderDescriptorRegistration
 @ProviderDescriptorDefinition
 public enum MiMoProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
-        ProviderDescriptor(
+        #if os(macOS)
+        let browserOrder: BrowserCookieImportOrder = [
+            .chrome,
+            .chromeBeta,
+            .chromeCanary,
+        ]
+        #else
+        let browserOrder: BrowserCookieImportOrder? = nil
+        #endif
+
+        return ProviderDescriptor(
             id: .mimo,
             metadata: ProviderMetadata(
                 id: .mimo,
-                displayName: "MiMo",
-                sessionLabel: "Status",
-                weeklyLabel: "Models",
+                displayName: "Xiaomi MiMo",
+                sessionLabel: "Credits",
+                weeklyLabel: "Window",
                 opusLabel: nil,
                 supportsOpus: false,
-                supportsCredits: false,
-                creditsHint: "",
-                toggleTitle: "Show MiMo usage",
+                supportsCredits: true,
+                creditsHint: "Token plan credits usage.",
+                toggleTitle: "Show Xiaomi MiMo token plan & balance",
                 cliName: "mimo",
-                defaultEnabled: true,
+                defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: nil,
-                dashboardURL: "https://platform.xiaomimimo.com/console/balance",
+                browserCookieOrder: browserOrder,
+                dashboardURL: "https://platform.xiaomimimo.com/#/console/balance",
                 statusPageURL: nil),
             branding: ProviderBranding(
                 iconStyle: .mimo,
                 iconResourceName: "ProviderIcon-mimo",
-                color: ProviderColor(red: 1.0, green: 0.55, blue: 0.0)),
+                color: ProviderColor(red: 1.0, green: 105 / 255, blue: 0)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
-                noDataMessage: { "MiMo cost summary is not available via API." }),
+                noDataMessage: { "Xiaomi MiMo cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .web, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
-                    [MiMoWebFetchStrategy(), MiMoAPIFetchStrategy()]
-                })),
+                sourceModes: [.auto, .web],
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [MiMoWebFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "mimo",
-                aliases: ["xiaomi", "mimo-v2"],
+                aliases: ["xiaomi-mimo"],
                 versionDetector: nil))
-    }
-}
-
-struct MiMoAPIFetchStrategy: ProviderFetchStrategy {
-    let id: String = "mimo.api"
-    let kind: ProviderFetchKind = .apiToken
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        Self.resolveToken(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let apiKey = Self.resolveToken(environment: context.env) else {
-            throw MiMoUsageError.missingCredentials
-        }
-        let baseURL = MiMoSettingsReader.baseURL(environment: context.env)
-        let usage = try await MiMoUsageFetcher.verifyAPI(apiKey: apiKey, baseURL: baseURL)
-        return self.makeResult(
-            usage: usage.toUsageSnapshot(),
-            sourceLabel: "api")
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        true
-    }
-
-    private static func resolveToken(environment: [String: String]) -> String? {
-        ProviderTokenResolver.mimoToken(environment: environment)
     }
 }
 
 struct MiMoWebFetchStrategy: ProviderFetchStrategy {
     let id: String = "mimo.web"
     let kind: ProviderFetchKind = .web
-    private static let log = CodexBarLog.logger(LogCategories.mimoWeb)
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        if MiMoCookieHeader.resolveCookieOverride(context: context) != nil {
+        guard context.settings?.mimo?.cookieSource != .off else { return false }
+        if context.settings?.mimo?.cookieSource == .manual {
+            return Self.resolveManualCookieHeader(context: context) != nil
+        }
+        if Self.resolveManualCookieHeader(context: context) != nil {
             return true
         }
 
         #if os(macOS)
-        if context.settings?.mimo?.cookieSource != .off {
-            return MiMoCookieImporter.hasSession()
+        if let cached = CookieHeaderCache.load(provider: .mimo),
+           MiMoCookieHeader.normalizedHeader(from: cached.cookieHeader) != nil
+        {
+            return true
         }
-        #endif
-
+        return MiMoCookieImporter.hasSession(browserDetection: context.browserDetection)
+        #else
         return false
+        #endif
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let cookieHeader = self.resolveCookieHeader(context: context) else {
-            throw MiMoUsageError.missingCookie
+        guard context.settings?.mimo?.cookieSource != .off else {
+            throw MiMoSettingsError.missingCookie
         }
-
-        let snapshot = try await MiMoUsageFetcher.fetchBalance(cookieHeader: cookieHeader)
-        return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
-            sourceLabel: "web")
-    }
-
-    func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
-        if case MiMoUsageError.missingCookie = error { return false }
-        return true
-    }
-
-    private func resolveCookieHeader(context: ProviderFetchContext) -> String? {
-        if let override = MiMoCookieHeader.resolveCookieOverride(context: context) {
-            return override.cookieHeader
+        if context.settings?.mimo?.cookieSource == .manual {
+            guard let manualCookie = Self.resolveManualCookieHeader(context: context) else {
+                throw MiMoSettingsError.invalidCookie
+            }
+            let snapshot = try await MiMoUsageFetcher.fetchUsage(
+                cookieHeader: manualCookie,
+                environment: context.env)
+            return self.makeResult(usage: snapshot.toUsageSnapshot(), sourceLabel: "web")
+        }
+        if let manualCookie = Self.resolveManualCookieHeader(context: context) {
+            let snapshot = try await MiMoUsageFetcher.fetchUsage(
+                cookieHeader: manualCookie,
+                environment: context.env)
+            return self.makeResult(usage: snapshot.toUsageSnapshot(), sourceLabel: "web")
         }
 
         #if os(macOS)
-        if context.settings?.mimo?.cookieSource != .off {
+        var lastError: Error?
+
+        if let cached = CookieHeaderCache.load(provider: .mimo),
+           let cachedHeader = MiMoCookieHeader.normalizedHeader(from: cached.cookieHeader)
+        {
             do {
-                let session = try MiMoCookieImporter.importSession()
-                if let header = session.cookieHeader {
-                    return header
-                }
+                let snapshot = try await MiMoUsageFetcher.fetchUsage(
+                    cookieHeader: cachedHeader,
+                    environment: context.env)
+                return self.makeResult(usage: snapshot.toUsageSnapshot(), sourceLabel: "web")
             } catch {
-                Self.log.debug("MiMo browser cookie import failed: \(error)")
+                guard Self.shouldRetryNextSession(for: error) else {
+                    throw error
+                }
+                CookieHeaderCache.clear(provider: .mimo)
+                lastError = error
             }
         }
-        #endif
 
-        return nil
+        let sessions = try MiMoCookieImporter.importSessions(browserDetection: context.browserDetection)
+        guard !sessions.isEmpty else {
+            if let lastError { throw lastError }
+            throw MiMoSettingsError.missingCookie
+        }
+
+        for session in sessions {
+            do {
+                let snapshot = try await MiMoUsageFetcher.fetchUsage(
+                    cookieHeader: session.cookieHeader,
+                    environment: context.env)
+                CookieHeaderCache.store(
+                    provider: .mimo,
+                    cookieHeader: session.cookieHeader,
+                    sourceLabel: session.sourceLabel)
+                return self.makeResult(usage: snapshot.toUsageSnapshot(), sourceLabel: "web")
+            } catch {
+                guard Self.shouldRetryNextSession(for: error) else {
+                    throw error
+                }
+                lastError = error
+                continue
+            }
+        }
+
+        if let lastError { throw lastError }
+        throw MiMoSettingsError.missingCookie
+        #else
+        throw MiMoSettingsError.missingCookie
+        #endif
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
+    }
+
+    private static func resolveManualCookieHeader(context: ProviderFetchContext) -> String? {
+        guard context.settings?.mimo?.cookieSource == .manual else { return nil }
+        return MiMoCookieHeader.normalizedHeader(from: context.settings?.mimo?.manualCookieHeader)
+    }
+
+    private static func shouldRetryNextSession(for error: Error) -> Bool {
+        if error is DecodingError {
+            return true
+        }
+        guard let mimoError = error as? MiMoUsageError else {
+            return false
+        }
+        switch mimoError {
+        case .invalidCredentials, .loginRequired, .parseFailed:
+            return true
+        case .networkError:
+            return false
+        }
     }
 }

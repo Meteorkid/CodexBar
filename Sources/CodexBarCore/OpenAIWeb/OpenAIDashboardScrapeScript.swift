@@ -175,6 +175,105 @@ let openAIDashboardScrapeScript = """
         const normalized = normalizeHref(anchorHref || dataHref || propHref);
         return normalized && isLikelyCreditsURL(normalized) ? normalized : null;
       };
+      const cleanPlanName = (raw) => String(raw || '')
+        .replace(/\\b(claude|codex|account|plan)\\b/gi, ' ')
+        .replace(/_/g, ' ')
+        .replace(/-/g, ' ')
+        .replace(/\\s+/g, ' ')
+        .trim();
+      const codexPlanDisplayName = (raw) => {
+        const trimmed = String(raw || '').trim();
+        if (!trimmed) return null;
+        const lower = trimmed.toLowerCase();
+        const exact = {
+          pro: 'Pro 20x',
+          prolite: 'Pro 5x',
+          'pro_lite': 'Pro 5x',
+          'pro-lite': 'Pro 5x',
+          'pro lite': 'Pro 5x'
+        };
+        if (exact[lower]) return exact[lower];
+        const cleaned = cleanPlanName(trimmed);
+        if (!cleaned) return trimmed;
+        if (exact[cleaned.toLowerCase()]) return exact[cleaned.toLowerCase()];
+        return cleaned.split(' ')
+          .filter(Boolean)
+          .map(word => {
+            const wordLower = word.toLowerCase();
+            if (wordLower === 'cbp' || wordLower === 'k12') return wordLower.toUpperCase();
+            if (word === word.toUpperCase() && /[a-z]/i.test(word)) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1);
+          })
+          .join(' ') || cleaned;
+      };
+      const normalizePlanValue = (value) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed) return null;
+        const lower = trimmed.toLowerCase();
+        const allowed = [
+          'free',
+          'plus',
+          'pro',
+          'team',
+          'enterprise',
+          'business',
+          'edu',
+          'education',
+          'gov',
+          'premium',
+          'essential'
+        ];
+        if (!allowed.some(token => lower.includes(token))) return null;
+        return codexPlanDisplayName(trimmed) || cleanPlanName(trimmed);
+      };
+      const planCandidate = (key, value) => {
+        const lower = String(key || '').toLowerCase();
+        if (!lower.includes('plan') && !lower.includes('tier') && !lower.includes('subscription')) return null;
+        if (typeof value === 'string') return normalizePlanValue(value);
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          return normalizePlanValue(value.name) ||
+            normalizePlanValue(value.displayName) ||
+            normalizePlanValue(value.tier);
+        }
+        return null;
+      };
+      const findPlan = (root) => {
+        if (!root || typeof root !== 'object') return null;
+        const queue = [root];
+        const seenObjects = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+        let index = 0;
+        let seen = 0;
+        while (index < queue.length && seen < 6000) {
+          const cur = queue[index++];
+          seen++;
+          if (!cur || typeof cur !== 'object') continue;
+          if (seenObjects) {
+            if (seenObjects.has(cur)) continue;
+            seenObjects.add(cur);
+          }
+          if (Array.isArray(cur)) {
+            for (const v of cur) {
+              if (v && typeof v === 'object') queue.push(v);
+            }
+            continue;
+          }
+          for (const [k, v] of Object.entries(cur)) {
+            const plan = planCandidate(k, v);
+            if (plan) return plan;
+            if (v && typeof v === 'object') queue.push(v);
+          }
+        }
+        return null;
+      };
+      const parseJSONScript = (id) => {
+        try {
+          const node = document.getElementById(id);
+          const raw = node && node.textContent ? String(node.textContent) : '';
+          return raw ? JSON.parse(raw) : null;
+        } catch {
+          return null;
+        }
+      };
       const pickLikelyPurchaseButton = (buttons) => {
         if (!buttons || buttons.length === 0) return null;
         const labeled = buttons.find(btn => {
@@ -271,6 +370,96 @@ let openAIDashboardScrapeScript = """
           if (root && !roots.includes(root)) roots.push(root);
         }
         return roots;
+      };
+      const usageBreakdownTitleScore = (title) => {
+        const lower = String(title || '').trim().toLowerCase().replace(/\\s+/g, ' ');
+        if (!lower) return 0;
+        if (lower === 'usage breakdown') return 1000000;
+        if (lower.includes('usage breakdown')) return 900000;
+        if (lower === 'personal usage') return 800000;
+        if (lower.includes('threads') ||
+          lower.includes('turns') ||
+          lower.includes('client') ||
+          lower.includes('skill') ||
+          lower.includes('invocation')) return -1000000;
+        return 0;
+      };
+      const titleLikeElements = (scope) => {
+        try {
+          return Array.from(scope.querySelectorAll('h1,h2,h3,[role=\"heading\"],div,span,p'))
+            .filter(el => {
+              const title = textOf(el);
+              const lower = title.toLowerCase();
+              const tag = el.tagName ? el.tagName.toLowerCase() : '';
+              const isHeading = tag === 'h1' ||
+                tag === 'h2' ||
+                tag === 'h3' ||
+                String(el.getAttribute('role') || '').toLowerCase() === 'heading';
+              return title.length > 0 &&
+                title.length <= 80 &&
+                (
+                  isHeading ||
+                  usageBreakdownTitleScore(title) !== 0 ||
+                  lower.includes('usage breakdown') ||
+                  lower.includes('threads') ||
+                  lower.includes('turns') ||
+                  lower.includes('client') ||
+                  lower.includes('skill') ||
+                  lower.includes('invocation')
+                );
+            });
+        } catch {
+          return [];
+        }
+      };
+      const titleNodePrecedesRoot = (titleNode, root) => {
+        if (!titleNode || titleNode === root || root.contains(titleNode) || titleNode.contains(root)) return false;
+        const relation = titleNode.compareDocumentPosition(root);
+        return Boolean(relation & Node.DOCUMENT_POSITION_FOLLOWING);
+      };
+      const nearestScoredChartTitleInScope = (scope, root) => {
+        let best = null;
+        for (const titleNode of titleLikeElements(scope)) {
+          if (!titleNodePrecedesRoot(titleNode, root)) continue;
+          const title = textOf(titleNode);
+          const score = usageBreakdownTitleScore(title);
+          if (score === 0) continue;
+          if (!best || score >= best.score) best = { title, score };
+        }
+        return best ? best.title : '';
+      };
+      const chartTitleBoundaryForRoot = (root) => {
+        if (!root) return null;
+        try {
+          return root.closest('section,[role=\"region\"],article') || root.parentElement || null;
+        } catch {
+          return root.parentElement || null;
+        }
+      };
+      const nearestTitleTextInScope = (scope, root) => {
+        if (!scope) return '';
+        let nearest = null;
+        for (const titleNode of titleLikeElements(scope)) {
+          if (titleNodePrecedesRoot(titleNode, root)) nearest = titleNode;
+        }
+        return textOf(nearest);
+      };
+      const nearestChartTitleTextForRoot = (root) => {
+        if (!root) return '';
+        try {
+          const boundary = chartTitleBoundaryForRoot(root) || root.parentElement || null;
+          let ancestor = root.parentElement || null;
+          for (let i = 0; i < 8 && ancestor; i++) {
+            const scoredTitle = nearestScoredChartTitleInScope(ancestor, root);
+            if (scoredTitle) return scoredTitle;
+            if (ancestor === boundary) break;
+            ancestor = ancestor.parentElement || null;
+          }
+
+          return nearestTitleTextInScope(boundary, root);
+        } catch {
+          return '';
+        }
       };
       const legendMapForUsageChartRoot = (root) => {
         const legendMap = {};
@@ -375,6 +564,8 @@ let openAIDashboardScrapeScript = """
           let debug = {
             pathCount: paths.length,
             chartCount: 0,
+            eligibleCandidateCount: 0,
+            selectedCandidateTitle: null,
             candidateSummaries: [],
             sampleReactKeys: null,
             sampleMetaKeys: null,
@@ -407,15 +598,37 @@ let openAIDashboardScrapeScript = """
           debug.chartCount = roots.length;
           const candidates = roots.map(root => {
             const chartPaths = paths.filter(path => usageChartRootForPath(path) === root);
+            const title = nearestChartTitleTextForRoot(root);
+            const titleScore = usageBreakdownTitleScore(title);
             const parsed = parseUsageBreakdownFromChartPaths(chartPaths, legendMapForUsageChartRoot(root));
             return {
               root,
+              title,
+              titleScore,
               pathCount: chartPaths.length,
-              ...parsed
+              ...parsed,
+              score: titleScore + parsed.score
             };
           }).filter(candidate => candidate.breakdown.length > 0);
-          candidates.sort((a, b) => b.score - a.score);
+          const rejectedTitleCandidates = candidates.filter(candidate => candidate.titleScore < 0);
+          const titledCandidates = candidates.filter(candidate => candidate.titleScore > 0);
+          const unknownTitleCandidates = candidates.filter(candidate => candidate.titleScore === 0);
+          const eligibleCandidates = titledCandidates;
+          eligibleCandidates.sort((a, b) => b.score - a.score);
+          debug.eligibleCandidateCount = eligibleCandidates.length;
+          debug.selectedCandidateTitle = eligibleCandidates[0] ? eligibleCandidates[0].title : null;
+          if (eligibleCandidates.length === 0 && candidates.length > 0) {
+            if (unknownTitleCandidates.length > 0) {
+              debug.error = 'No English usage breakdown chart title found. Candidate titles: ' +
+                candidates.map(candidate => candidate.title || 'Untitled chart').join(', ');
+            } else if (rejectedTitleCandidates.length > 0) {
+              debug.error = 'Only non-usage chart candidates found: ' +
+                rejectedTitleCandidates.map(candidate => candidate.title || 'Untitled chart').join(', ');
+            }
+          }
           debug.candidateSummaries = candidates.slice(0, 6).map(candidate => ({
+            title: candidate.title,
+            titleScore: candidate.titleScore,
             pathCount: candidate.pathCount,
             dayCount: candidate.breakdown.length,
             pointCount: candidate.pointCount,
@@ -424,7 +637,7 @@ let openAIDashboardScrapeScript = """
             services: candidate.services.slice(0, 8)
           }));
 
-          const breakdown = candidates[0] ? candidates[0].breakdown : [];
+          const breakdown = eligibleCandidates[0] ? eligibleCandidates[0].breakdown : [];
           const json = (breakdown.length > 0) ? JSON.stringify(breakdown) : null;
           window.__codexbarUsageBreakdownJSON = json;
           window.__codexbarUsageBreakdownDebug = json ? null : JSON.stringify(debug);
@@ -436,6 +649,15 @@ let openAIDashboardScrapeScript = """
       const usageBreakdownDebug = (() => {
         try {
           return window.__codexbarUsageBreakdownDebug || null;
+        } catch {
+          return null;
+        }
+      })();
+      const usageBreakdownError = (() => {
+        try {
+          if (!usageBreakdownDebug) return null;
+          const parsed = JSON.parse(usageBreakdownDebug);
+          return parsed && parsed.error ? String(parsed.error) : null;
         } catch {
           return null;
         }
@@ -564,6 +786,8 @@ let openAIDashboardScrapeScript = """
       } catch {}
 
       let signedInEmail = null;
+      let authStatus = null;
+      let accountPlan = null;
       try {
         const next = window.__NEXT_DATA__ || null;
         const props = (next && next.props && next.props.pageProps) ? next.props.pageProps : null;
@@ -572,12 +796,29 @@ let openAIDashboardScrapeScript = """
         signedInEmail = userEmail || sessionEmail || null;
       } catch {}
 
+      const clientBootstrap = parseJSONScript('client-bootstrap');
+      if (clientBootstrap) {
+        try {
+          authStatus = typeof clientBootstrap.authStatus === 'string' ? clientBootstrap.authStatus : null;
+          if (!signedInEmail) {
+            const session = clientBootstrap.session || null;
+            const user = (session && session.user) || clientBootstrap.user || null;
+            const email = user && typeof user.email === 'string' ? user.email : null;
+            if (email && email.includes('@')) signedInEmail = email;
+          }
+          if (!accountPlan) accountPlan = findPlan(clientBootstrap);
+        } catch {}
+      }
+      if (!accountPlan) {
+        try {
+          accountPlan = findPlan(window.__NEXT_DATA__ || parseJSONScript('__NEXT_DATA__'));
+        } catch {}
+      }
+
       if (!signedInEmail) {
         try {
-          const node = document.getElementById('__NEXT_DATA__');
-          const raw = node && node.textContent ? String(node.textContent) : '';
-          if (raw) {
-            const obj = JSON.parse(raw);
+          const obj = parseJSONScript('__NEXT_DATA__');
+          if (obj) {
             const queue = [obj];
             let seen = 0;
             while (queue.length && seen < 2000 && !signedInEmail) {
@@ -645,12 +886,14 @@ let openAIDashboardScrapeScript = """
         cloudflareInterstitial,
         href,
         bodyText,
-        bodyHTML: document.documentElement ? String(document.documentElement.outerHTML || '') : '',
         signedInEmail,
+        authStatus,
+        accountPlan,
         creditsPurchaseURL,
         rows,
         usageBreakdownJSON,
         usageBreakdownDebug,
+        usageBreakdownError,
         scrollY,
         scrollHeight,
         viewportHeight,

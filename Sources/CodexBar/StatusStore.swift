@@ -1,14 +1,17 @@
+import CodexBarCore
 import Foundation
 
-/// 状态页查询逻辑，从 UsageStore+Status 提取。
-/// 所有方法均为 static，无 UsageStore 实例耦合。
-enum StatusStore {
-    static func fetchStatus(from baseURL: URL) async throws -> ProviderStatus {
+extension UsageStore {
+    static func fetchStatus(
+        from baseURL: URL,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared)
+        async throws -> ProviderStatus
+    {
         let apiURL = baseURL.appendingPathComponent("api/v2/status.json")
         var request = URLRequest(url: apiURL)
         request.timeoutInterval = 10
 
-        let (data, _) = try await URLSession.shared.data(for: request, delegate: nil)
+        let (data, _) = try await transport.data(for: request)
 
         struct Response: Decodable {
             struct Status: Decodable {
@@ -48,13 +51,17 @@ enum StatusStore {
             updatedAt: response.page?.updatedAt)
     }
 
-    static func fetchWorkspaceStatus(productID: String) async throws -> ProviderStatus {
+    static func fetchWorkspaceStatus(
+        productID: String,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared)
+        async throws -> ProviderStatus
+    {
         guard let url = URL(string: "https://www.google.com/appsstatus/dashboard/incidents.json") else {
             throw URLError(.badURL)
         }
         var request = URLRequest(url: url)
         request.timeoutInterval = 10
-        let (data, _) = try await URLSession.shared.data(for: request, delegate: nil)
+        let (data, _) = try await transport.data(for: request)
         return try Self.parseGoogleWorkspaceStatus(data: data, productID: productID)
     }
 

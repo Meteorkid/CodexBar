@@ -18,6 +18,13 @@ struct OllamaUsageFetcherTests {
     }
 
     @Test
+    func `rejects non https ollama urls`() {
+        #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://ollama.com/settings")))
+        #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://www.ollama.com")))
+        #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://app.ollama.com/path")))
+    }
+
+    @Test
     func `manual mode without valid header throws no session cookie`() {
         do {
             _ = try OllamaUsageFetcher.resolveManualCookieHeader(
@@ -86,6 +93,7 @@ struct OllamaUsageFetcherTests {
     @Test
     func `cookie importer defaults to chrome first`() {
         #expect(OllamaCookieImporter.defaultPreferredBrowsers == [.chrome])
+        #expect(OllamaCookieImporter.defaultAllowFallbackBrowsers)
     }
 
     @Test
@@ -202,6 +210,21 @@ struct OllamaUsageFetcherTests {
             allowFallbackBrowsers: true,
             loadFallbackCandidates: { fallback })
         #expect(selected.sourceLabel == "Safari Profile")
+    }
+
+    @Test
+    func `cookie selector can fall back to comet secure session cookie`() throws {
+        let fallback = [
+            OllamaCookieImporter.SessionInfo(
+                cookies: [Self.makeCookie(name: "__Secure-session", value: "auth")],
+                sourceLabel: "Comet Profile"),
+        ]
+
+        let selected = try OllamaCookieImporter.selectSessionInfoWithFallback(
+            preferredCandidates: [],
+            allowFallbackBrowsers: true,
+            loadFallbackCandidates: { fallback })
+        #expect(selected.sourceLabel == "Comet Profile")
     }
 
     private static func makeCookie(

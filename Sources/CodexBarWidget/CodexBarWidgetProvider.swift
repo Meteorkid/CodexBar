@@ -8,6 +8,7 @@ enum ProviderChoice: String, AppEnum {
     case claude
     case gemini
     case alibaba
+    case alibabatokenplan
     case antigravity
     case zai
     case copilot
@@ -23,6 +24,7 @@ enum ProviderChoice: String, AppEnum {
         .claude: DisplayRepresentation(title: "Claude"),
         .gemini: DisplayRepresentation(title: "Gemini"),
         .alibaba: DisplayRepresentation(title: "Alibaba"),
+        .alibabatokenplan: DisplayRepresentation(title: "Alibaba Token Plan"),
         .antigravity: DisplayRepresentation(title: "Antigravity"),
         .zai: DisplayRepresentation(title: "z.ai"),
         .copilot: DisplayRepresentation(title: "Copilot"),
@@ -38,6 +40,7 @@ enum ProviderChoice: String, AppEnum {
         case .claude: .claude
         case .gemini: .gemini
         case .alibaba: .alibaba
+        case .alibabatokenplan: .alibabatokenplan
         case .antigravity: .antigravity
         case .zai: .zai
         case .copilot: .copilot
@@ -52,9 +55,12 @@ enum ProviderChoice: String, AppEnum {
     init?(provider: UsageProvider) {
         switch provider {
         case .codex: self = .codex
+        case .openai: return nil // OpenAI not yet supported in widgets
+        case .azureopenai: return nil // Azure OpenAI not yet supported in widgets
         case .claude: self = .claude
         case .gemini: self = .gemini
         case .alibaba: self = .alibaba
+        case .alibabatokenplan: self = .alibabatokenplan
         case .antigravity: self = .antigravity
         case .cursor: return nil // Cursor not yet supported in widgets
         case .opencode: self = .opencode
@@ -63,6 +69,7 @@ enum ProviderChoice: String, AppEnum {
         case .factory: return nil // Factory not yet supported in widgets
         case .copilot: self = .copilot
         case .minimax: self = .minimax
+        case .manus: return nil // Manus not yet supported in widgets
         case .vertexai: return nil // Vertex AI not yet supported in widgets
         case .kilo: self = .kilo
         case .kiro: return nil // Kiro not yet supported in widgets
@@ -70,29 +77,31 @@ enum ProviderChoice: String, AppEnum {
         case .jetbrains: return nil // JetBrains not yet supported in widgets
         case .kimi: return nil // Kimi not yet supported in widgets
         case .kimik2: return nil // Kimi K2 not yet supported in widgets
+        case .moonshot: return nil // Moonshot not yet supported in widgets
         case .amp: return nil // Amp not yet supported in widgets
+        case .t3chat: return nil // T3 Chat not yet supported in widgets
         case .ollama: return nil // Ollama not yet supported in widgets
         case .synthetic: return nil // Synthetic not yet supported in widgets
         case .openrouter: return nil // OpenRouter not yet supported in widgets
+        case .elevenlabs: return nil // ElevenLabs not yet supported in widgets
         case .warp: return nil // Warp not yet supported in widgets
+        case .windsurf: return nil // Windsurf not yet supported in widgets
         case .perplexity: return nil // Perplexity not yet supported in widgets
+        case .mimo: return nil // Xiaomi MiMo not yet supported in widgets
+        case .doubao: return nil // Doubao not yet supported in widgets
         case .abacus: return nil // Abacus AI not yet supported in widgets
         case .mistral: return nil // Mistral not yet supported in widgets
         case .deepseek: return nil // DeepSeek not yet supported in widgets
         case .codebuff: return nil // Codebuff not yet supported in widgets
-        case .zhipu: return nil // Zhipu not yet supported in widgets
-        case .doubao: return nil // Doubao not yet supported in widgets
-        case .ernie: return nil // ERNIE not yet supported in widgets
-        case .mimo: return nil // MiMo not yet supported in widgets
-        case .openai: return nil // OpenAI API not yet supported in widgets
-        case .manus: return nil // Manus not yet supported in widgets
-        case .moonshot: return nil // Moonshot not yet supported in widgets
-        case .windsurf: return nil // Windsurf not yet supported in widgets
         case .crof: return nil // Crof not yet supported in widgets
         case .venice: return nil // Venice not yet supported in widgets
         case .commandcode: return nil // CommandCode not yet supported in widgets
         case .stepfun: return nil // StepFun not yet supported in widgets
         case .bedrock: return nil // Bedrock not yet supported in widgets
+        case .grok: return nil // Grok not yet supported in widgets
+        case .groq: return nil // Groq not yet supported in widgets
+        case .llmproxy: return nil // LLM Proxy not yet supported in widgets
+        case .deepgram: return nil // Deepgram not yet supported in widgets
         }
     }
 }

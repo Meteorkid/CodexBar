@@ -2,26 +2,7 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
-    var mimoBaseURL: String {
-        get { self.configSnapshot.providerConfig(for: .mimo)?.sanitizedBaseURL ?? "" }
-        set {
-            self.updateProviderConfig(provider: .mimo) { entry in
-                entry.apiBaseURL = self.normalizedConfigValue(newValue)
-            }
-        }
-    }
-
-    var mimoAPIToken: String {
-        get { self.configSnapshot.providerConfig(for: .mimo)?.sanitizedAPIKey ?? "" }
-        set {
-            self.updateProviderConfig(provider: .mimo) { entry in
-                entry.apiKey = self.normalizedConfigValue(newValue)
-            }
-            self.logSecretUpdate(provider: .mimo, field: "apiKey", value: newValue)
-        }
-    }
-
-    var mimoManualCookieHeader: String {
+    var miMoCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .mimo)?.sanitizedCookieHeader ?? "" }
         set {
             self.updateProviderConfig(provider: .mimo) { entry in
@@ -31,7 +12,7 @@ extension SettingsStore {
         }
     }
 
-    var mimoCookieSource: ProviderCookieSource {
+    var miMoCookieSource: ProviderCookieSource {
         get { self.resolvedCookieSource(provider: .mimo, fallback: .auto) }
         set {
             self.updateProviderConfig(provider: .mimo) { entry in
@@ -40,13 +21,15 @@ extension SettingsStore {
             self.logProviderModeChange(provider: .mimo, field: "cookieSource", value: newValue.rawValue)
         }
     }
+
+    func ensureMiMoCookieLoaded() {}
 }
 
 extension SettingsStore {
-    func mimoSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.MiMoProviderSettings {
+    func miMoSettingsSnapshot(tokenOverride: TokenAccountOverride?) -> ProviderSettingsSnapshot.MiMoProviderSettings {
         _ = tokenOverride
         return ProviderSettingsSnapshot.MiMoProviderSettings(
-            cookieSource: self.mimoCookieSource,
-            manualCookieHeader: self.mimoManualCookieHeader)
+            cookieSource: self.miMoCookieSource,
+            manualCookieHeader: self.miMoCookieHeader)
     }
 }

@@ -103,6 +103,96 @@ extension SettingsStore {
         }
     }
 
+    var quotaWarningNotificationsEnabled: Bool {
+        get { self.defaultsState.quotaWarningNotificationsEnabled }
+        set {
+            self.defaultsState.quotaWarningNotificationsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "quotaWarningNotificationsEnabled")
+        }
+    }
+
+    var quotaWarningThresholds: [Int] {
+        get { QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningThresholdsRaw) }
+        set {
+            let sanitized = QuotaWarningThresholds.sanitized(newValue)
+            self.defaultsState.quotaWarningThresholdsRaw = sanitized
+            self.defaultsState.quotaWarningSessionThresholdsRaw = sanitized
+            self.defaultsState.quotaWarningWeeklyThresholdsRaw = sanitized
+            self.userDefaults.set(sanitized, forKey: "quotaWarningThresholds")
+            self.userDefaults.set(sanitized, forKey: "quotaWarningSessionThresholds")
+            self.userDefaults.set(sanitized, forKey: "quotaWarningWeeklyThresholds")
+        }
+    }
+
+    func quotaWarningThresholds(_ window: QuotaWarningWindow) -> [Int] {
+        switch window {
+        case .session:
+            QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningSessionThresholdsRaw)
+        case .weekly:
+            QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningWeeklyThresholdsRaw)
+        }
+    }
+
+    func setQuotaWarningThresholds(_ window: QuotaWarningWindow, thresholds: [Int]) {
+        let sanitized = QuotaWarningThresholds.sanitized(thresholds)
+        switch window {
+        case .session:
+            self.defaultsState.quotaWarningSessionThresholdsRaw = sanitized
+            self.userDefaults.set(sanitized, forKey: "quotaWarningSessionThresholds")
+        case .weekly:
+            self.defaultsState.quotaWarningWeeklyThresholdsRaw = sanitized
+            self.userDefaults.set(sanitized, forKey: "quotaWarningWeeklyThresholds")
+        }
+    }
+
+    func quotaWarningWindowEnabled(_ window: QuotaWarningWindow) -> Bool {
+        switch window {
+        case .session:
+            self.defaultsState.quotaWarningSessionEnabled
+        case .weekly:
+            self.defaultsState.quotaWarningWeeklyEnabled
+        }
+    }
+
+    func setQuotaWarningWindowEnabled(_ window: QuotaWarningWindow, enabled: Bool) {
+        switch window {
+        case .session:
+            self.defaultsState.quotaWarningSessionEnabled = enabled
+            self.userDefaults.set(enabled, forKey: "quotaWarningSessionEnabled")
+        case .weekly:
+            self.defaultsState.quotaWarningWeeklyEnabled = enabled
+            self.userDefaults.set(enabled, forKey: "quotaWarningWeeklyEnabled")
+        }
+    }
+
+    var quotaWarningSoundEnabled: Bool {
+        get { self.defaultsState.quotaWarningSoundEnabled }
+        set {
+            self.defaultsState.quotaWarningSoundEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "quotaWarningSoundEnabled")
+        }
+    }
+
+    var quotaWarningMarkersVisible: Bool {
+        get { self.defaultsState.quotaWarningMarkersVisible }
+        set {
+            self.defaultsState.quotaWarningMarkersVisible = newValue
+            self.userDefaults.set(newValue, forKey: "quotaWarningMarkersVisible")
+        }
+    }
+
+    var weeklyProgressWorkDays: Int? {
+        get { self.defaultsState.weeklyProgressWorkDays }
+        set {
+            self.defaultsState.weeklyProgressWorkDays = newValue
+            if let newValue {
+                self.userDefaults.set(newValue, forKey: "weeklyProgressWorkDays")
+            } else {
+                self.userDefaults.removeObject(forKey: "weeklyProgressWorkDays")
+            }
+        }
+    }
+
     var usageBarsShowUsed: Bool {
         get { self.defaultsState.usageBarsShowUsed }
         set {
@@ -116,6 +206,14 @@ extension SettingsStore {
         set {
             self.defaultsState.resetTimesShowAbsolute = newValue
             self.userDefaults.set(newValue, forKey: "resetTimesShowAbsolute")
+        }
+    }
+
+    var providerChangelogLinksEnabled: Bool {
+        get { self.defaultsState.providerChangelogLinksEnabled }
+        set {
+            self.defaultsState.providerChangelogLinksEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "providerChangelogLinksEnabled")
         }
     }
 
@@ -144,12 +242,34 @@ extension SettingsStore {
         set { self.menuBarDisplayModeRaw = newValue.rawValue }
     }
 
-    var showAllTokenAccountsInMenu: Bool {
-        get { self.defaultsState.showAllTokenAccountsInMenu }
+    private var kiroMenuBarDisplayModeRaw: String? {
+        get { self.defaultsState.kiroMenuBarDisplayModeRaw }
         set {
-            self.defaultsState.showAllTokenAccountsInMenu = newValue
-            self.userDefaults.set(newValue, forKey: "showAllTokenAccountsInMenu")
+            self.defaultsState.kiroMenuBarDisplayModeRaw = newValue
+            if let raw = newValue {
+                self.userDefaults.set(raw, forKey: "kiroMenuBarDisplayMode")
+            } else {
+                self.userDefaults.removeObject(forKey: "kiroMenuBarDisplayMode")
+            }
         }
+    }
+
+    var kiroMenuBarDisplayMode: KiroMenuBarDisplayMode {
+        get { KiroMenuBarDisplayMode(rawValue: self.kiroMenuBarDisplayModeRaw ?? "") ?? .automatic }
+        set { self.kiroMenuBarDisplayModeRaw = newValue.rawValue }
+    }
+
+    var multiAccountMenuLayout: MultiAccountMenuLayout {
+        get { MultiAccountMenuLayout(rawValue: self.defaultsState.multiAccountMenuLayoutRaw) ?? .segmented }
+        set {
+            self.defaultsState.multiAccountMenuLayoutRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "multiAccountMenuLayout")
+        }
+    }
+
+    var showAllTokenAccountsInMenu: Bool {
+        get { self.multiAccountMenuLayout == .stacked }
+        set { self.multiAccountMenuLayout = newValue ? .stacked : .segmented }
     }
 
     var historicalTrackingEnabled: Bool {
@@ -173,6 +293,15 @@ extension SettingsStore {
         set {
             self.defaultsState.costUsageEnabled = newValue
             self.userDefaults.set(newValue, forKey: "tokenCostUsageEnabled")
+        }
+    }
+
+    var costUsageHistoryDays: Int {
+        get { self.defaultsState.costUsageHistoryDays }
+        set {
+            let clamped = max(1, min(365, newValue))
+            self.defaultsState.costUsageHistoryDays = clamped
+            self.userDefaults.set(clamped, forKey: "tokenCostUsageHistoryDays")
         }
     }
 
@@ -313,14 +442,6 @@ extension SettingsStore {
         }
     }
 
-    var claudePeakHoursEnabled: Bool {
-        get { self.defaultsState.claudePeakHoursEnabled }
-        set {
-            self.defaultsState.claudePeakHoursEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "claudePeakHoursEnabled")
-        }
-    }
-
     var showOptionalCreditsAndExtraUsage: Bool {
         get { self.defaultsState.showOptionalCreditsAndExtraUsage }
         set {
@@ -347,6 +468,17 @@ extension SettingsStore {
             self.userDefaults.set(newValue, forKey: "openAIWebBatterySaverEnabled")
             CodexBarLog.logger(LogCategories.settings).info(
                 "OpenAI web battery saver updated",
+                metadata: ["enabled": newValue ? "1" : "0"])
+        }
+    }
+
+    var providerStorageFootprintsEnabled: Bool {
+        get { self.defaultsState.providerStorageFootprintsEnabled }
+        set {
+            self.defaultsState.providerStorageFootprintsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "providerStorageFootprintsEnabled")
+            CodexBarLog.logger(LogCategories.settings).info(
+                "Provider storage footprints updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
         }
     }
@@ -558,6 +690,27 @@ extension SettingsStore {
         set {
             self.defaultsState.providerDetectionCompleted = newValue
             self.userDefaults.set(newValue, forKey: "providerDetectionCompleted")
+        }
+    }
+
+    var appLanguage: String {
+        get { self.defaultsState.appLanguageRaw ?? "" }
+        set {
+            let stored = newValue.isEmpty ? nil : newValue
+            self.defaultsState.appLanguageRaw = stored
+            if let stored {
+                self.userDefaults.set(stored, forKey: "appLanguage")
+                if self.userDefaults !== UserDefaults.standard {
+                    UserDefaults.standard.set(stored, forKey: "appLanguage")
+                }
+                UserDefaults.standard.set([stored], forKey: "AppleLanguages")
+            } else {
+                self.userDefaults.removeObject(forKey: "appLanguage")
+                if self.userDefaults !== UserDefaults.standard {
+                    UserDefaults.standard.removeObject(forKey: "appLanguage")
+                }
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
         }
     }
 

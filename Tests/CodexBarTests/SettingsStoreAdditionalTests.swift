@@ -41,6 +41,11 @@ struct SettingsStoreAdditionalTests {
         #expect(settings.menuBarMetricPreference(for: .cursor, snapshot: nil) == .automatic)
         #expect(settings.menuBarMetricSupportsExtraUsage(for: .cursor, snapshot: nil) == false)
 
+        settings.setMenuBarMetricPreference(.extraUsage, for: .claude)
+        #expect(settings.menuBarMetricPreference(for: .claude) == .extraUsage)
+        #expect(settings.menuBarMetricPreference(for: .claude, snapshot: nil) == .automatic)
+        #expect(settings.menuBarMetricSupportsExtraUsage(for: .claude, snapshot: nil) == false)
+
         settings.setMenuBarMetricPreference(.tertiary, for: .perplexity)
         #expect(settings.menuBarMetricPreference(for: .perplexity) == .tertiary)
         #expect(settings.menuBarMetricPreference(for: .perplexity, snapshot: nil) == .tertiary)
@@ -68,6 +73,19 @@ struct SettingsStoreAdditionalTests {
 
         settings.setMenuBarMetricPreference(.extraUsage, for: .openrouter)
         #expect(settings.menuBarMetricPreference(for: .openrouter) == .automatic)
+    }
+
+    @Test
+    func `menu bar metric preference restricts text only balance providers to automatic`() {
+        let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-text-only-metric")
+
+        for provider in [UsageProvider.deepseek, .mistral, .kimik2] {
+            settings.setMenuBarMetricPreference(.primary, for: provider)
+            #expect(settings.menuBarMetricPreference(for: provider) == .automatic)
+
+            settings.setMenuBarMetricPreference(.secondary, for: provider)
+            #expect(settings.menuBarMetricPreference(for: provider) == .automatic)
+        }
     }
 
     @Test

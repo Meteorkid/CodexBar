@@ -52,16 +52,16 @@ public enum ProviderDescriptorRegistry {
 
     private static let lock = NSLock()
     private static let store = Store()
-
-    /// 用于验证完整性的全集映射。新增 Provider 时需同时添加条目到此字典。
-    private static let allDescriptors: [UsageProvider: ProviderDescriptor] = [
+    private static let descriptorsByID: [UsageProvider: ProviderDescriptor] = [
         .codex: CodexProviderDescriptor.descriptor,
         .openai: OpenAIAPIProviderDescriptor.descriptor,
+        .azureopenai: AzureOpenAIProviderDescriptor.descriptor,
         .claude: ClaudeProviderDescriptor.descriptor,
         .cursor: CursorProviderDescriptor.descriptor,
         .opencode: OpenCodeProviderDescriptor.descriptor,
         .opencodego: OpenCodeGoProviderDescriptor.descriptor,
         .alibaba: AlibabaCodingPlanProviderDescriptor.descriptor,
+        .alibabatokenplan: AlibabaTokenPlanProviderDescriptor.descriptor,
         .factory: FactoryProviderDescriptor.descriptor,
         .gemini: GeminiProviderDescriptor.descriptor,
         .antigravity: AntigravityProviderDescriptor.descriptor,
@@ -78,12 +78,16 @@ public enum ProviderDescriptorRegistry {
         .kimik2: KimiK2ProviderDescriptor.descriptor,
         .moonshot: MoonshotProviderDescriptor.descriptor,
         .amp: AmpProviderDescriptor.descriptor,
+        .t3chat: T3ChatProviderDescriptor.descriptor,
         .ollama: OllamaProviderDescriptor.descriptor,
         .synthetic: SyntheticProviderDescriptor.descriptor,
         .openrouter: OpenRouterProviderDescriptor.descriptor,
-        .windsurf: WindsurfProviderDescriptor.descriptor,
+        .elevenlabs: ElevenLabsProviderDescriptor.descriptor,
         .warp: WarpProviderDescriptor.descriptor,
+        .windsurf: WindsurfProviderDescriptor.descriptor,
         .perplexity: PerplexityProviderDescriptor.descriptor,
+        .mimo: MiMoProviderDescriptor.descriptor,
+        .doubao: DoubaoProviderDescriptor.descriptor,
         .abacus: AbacusProviderDescriptor.descriptor,
         .mistral: MistralProviderDescriptor.descriptor,
         .deepseek: DeepSeekProviderDescriptor.descriptor,
@@ -93,18 +97,15 @@ public enum ProviderDescriptorRegistry {
         .commandcode: CommandCodeProviderDescriptor.descriptor,
         .stepfun: StepFunProviderDescriptor.descriptor,
         .bedrock: BedrockProviderDescriptor.descriptor,
-        .zhipu: ZhipuProviderDescriptor.descriptor,
-        .doubao: DoubaoProviderDescriptor.descriptor,
-        .ernie: ErnieProviderDescriptor.descriptor,
-        .mimo: MiMoProviderDescriptor.descriptor,
+        .grok: GrokProviderDescriptor.descriptor,
+        .groq: GroqProviderDescriptor.descriptor,
+        .llmproxy: LLMProxyProviderDescriptor.descriptor,
+        .deepgram: DeepgramProviderDescriptor.descriptor,
     ]
-
-    /// 宏 `@ProviderDescriptorRegistration` 在模块加载时自动注册 descriptor。
-    /// 此处注册全集确保非宏路径（如测试）也能工作。
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {
-            guard let descriptor = allDescriptors[provider] else {
-                fatalError("Missing ProviderDescriptor for \(provider.rawValue). Add an entry to allDescriptors.")
+            guard let descriptor = descriptorsByID[provider] else {
+                preconditionFailure("Missing ProviderDescriptor for \(provider.rawValue)")
             }
             _ = ProviderDescriptorRegistry.register(descriptor)
         }

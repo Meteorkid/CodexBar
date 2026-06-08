@@ -13,10 +13,10 @@ extension SettingsStore {
     }
 
     var bedrockSecretAccessKey: String {
-        get { self.configSnapshot.providerConfig(for: .bedrock)?.sanitizedCookieHeader ?? "" }
+        get { self.configSnapshot.providerConfig(for: .bedrock)?.sanitizedSecretKey ?? "" }
         set {
             self.updateProviderConfig(provider: .bedrock) { entry in
-                entry.cookieHeader = self.normalizedConfigValue(newValue)
+                entry.secretKey = self.normalizedConfigValue(newValue)
             }
             self.logSecretUpdate(provider: .bedrock, field: "secretAccessKey", value: newValue)
         }
@@ -29,6 +29,30 @@ extension SettingsStore {
                 entry.region = self.normalizedConfigValue(newValue)
             }
             self.logProviderModeChange(provider: .bedrock, field: "region", value: newValue)
+        }
+    }
+
+    var bedrockAuthMode: String {
+        get {
+            self.configSnapshot.providerConfig(for: .bedrock)?.sanitizedAWSAuthMode
+                ?? BedrockAuthMode.keys.rawValue
+        }
+        set {
+            let normalized = BedrockAuthMode(rawValue: newValue)?.rawValue ?? BedrockAuthMode.keys.rawValue
+            self.updateProviderConfig(provider: .bedrock) { entry in
+                entry.awsAuthMode = normalized
+            }
+            self.logProviderModeChange(provider: .bedrock, field: "authMode", value: normalized)
+        }
+    }
+
+    var bedrockProfile: String {
+        get { self.configSnapshot.providerConfig(for: .bedrock)?.awsProfile ?? "" }
+        set {
+            self.updateProviderConfig(provider: .bedrock) { entry in
+                entry.awsProfile = self.normalizedConfigValue(newValue)
+            }
+            self.logProviderModeChange(provider: .bedrock, field: "profile", value: newValue)
         }
     }
 }

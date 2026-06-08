@@ -49,7 +49,7 @@ struct FactoryProviderImplementation: ProviderImplementation {
                 source: context.settings.factoryCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
                 auto: "Automatic imports browser cookies and WorkOS tokens.",
-                manual: "Paste a Cookie header from app.factory.ai.",
+                manual: "Paste a Cookie or Authorization header from app.factory.ai.",
                 off: "Factory cookies are disabled.")
         }
 
@@ -88,5 +88,16 @@ struct FactoryProviderImplementation: ProviderImplementation {
         -> (label: String, action: MenuDescriptor.MenuAction)?
     {
         ("Open Droid in Browser...", .loginToProvider(url: "https://app.factory.ai"))
+    }
+
+    @MainActor
+    func appendUsageMenuEntries(context: ProviderMenuUsageContext, entries: inout [ProviderMenuEntry]) {
+        guard context.settings.showOptionalCreditsAndExtraUsage,
+              let cost = context.snapshot?.providerCost,
+              cost.period == "Extra usage balance"
+        else { return }
+
+        let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+        entries.append(.text(L("Extra usage balance: %@", balance), .primary))
     }
 }

@@ -90,7 +90,64 @@ struct MistralPrice: Codable {
 
 // MARK: - Intermediate Snapshot
 
-public struct MistralUsageSnapshot: Sendable {
+public struct MistralDailyUsageBucket: Codable, Equatable, Sendable, Identifiable {
+    public struct ModelBreakdown: Codable, Equatable, Sendable, Identifiable {
+        public let name: String
+        public let cost: Double
+        public let inputTokens: Int
+        public let cachedTokens: Int
+        public let outputTokens: Int
+
+        public var id: String {
+            self.name
+        }
+
+        public var totalTokens: Int {
+            self.inputTokens + self.cachedTokens + self.outputTokens
+        }
+
+        public init(name: String, cost: Double, inputTokens: Int, cachedTokens: Int, outputTokens: Int) {
+            self.name = name
+            self.cost = cost
+            self.inputTokens = inputTokens
+            self.cachedTokens = cachedTokens
+            self.outputTokens = outputTokens
+        }
+    }
+
+    public let day: String
+    public let cost: Double
+    public let inputTokens: Int
+    public let cachedTokens: Int
+    public let outputTokens: Int
+    public let models: [ModelBreakdown]
+
+    public var id: String {
+        self.day
+    }
+
+    public var totalTokens: Int {
+        self.inputTokens + self.cachedTokens + self.outputTokens
+    }
+
+    public init(
+        day: String,
+        cost: Double,
+        inputTokens: Int,
+        cachedTokens: Int,
+        outputTokens: Int,
+        models: [ModelBreakdown])
+    {
+        self.day = day
+        self.cost = cost
+        self.inputTokens = inputTokens
+        self.cachedTokens = cachedTokens
+        self.outputTokens = outputTokens
+        self.models = models
+    }
+}
+
+public struct MistralUsageSnapshot: Codable, Sendable {
     public let totalCost: Double
     public let currency: String
     public let currencySymbol: String
@@ -98,27 +155,96 @@ public struct MistralUsageSnapshot: Sendable {
     public let totalOutputTokens: Int
     public let totalCachedTokens: Int
     public let modelCount: Int
+    public let daily: [MistralDailyUsageBucket]
     public let startDate: Date?
     public let endDate: Date?
     public let updatedAt: Date
 
+    public init(
+        totalCost: Double,
+        currency: String,
+        currencySymbol: String,
+        totalInputTokens: Int,
+        totalOutputTokens: Int,
+        totalCachedTokens: Int,
+        modelCount: Int,
+        daily: [MistralDailyUsageBucket] = [],
+        startDate: Date?,
+        endDate: Date?,
+        updatedAt: Date)
+    {
+        self.totalCost = totalCost
+        self.currency = currency
+        self.currencySymbol = currencySymbol
+        self.totalInputTokens = totalInputTokens
+        self.totalOutputTokens = totalOutputTokens
+        self.totalCachedTokens = totalCachedTokens
+        self.modelCount = modelCount
+        self.daily = daily.sorted { $0.day < $1.day }
+        self.startDate = startDate
+        self.endDate = endDate
+        self.updatedAt = updatedAt
+    }
+
     public func toUsageSnapshot() -> UsageSnapshot {
-        let resetDate = self.endDate.map { Calendar.current.date(byAdding: .second, value: 1, to: $0) ?? $0 }
-        let costDescription = if self.totalCost > 0 {
+        // Negative totalCost means a refund/credit adjustment; clamp to zero rather than
+        // showing a confusing negative amount in the menu bar.
+        let spendText = if self.totalCost > 0 {
             "\(self.currencySymbol)\(String(format: "%.4f", self.totalCost)) this month"
         } else {
-            "No usage this month"
+            "\(self.currencySymbol)0.0000 this month"
         }
-        let primary = RateWindow(
-            usedPercent: 0,
-            windowMinutes: nil,
-            resetsAt: resetDate,
-            resetDescription: costDescription)
+        let identity = ProviderIdentitySnapshot(
+            providerID: .mistral,
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "API spend: \(spendText)")
         return UsageSnapshot(
-            primary: primary,
+            primary: nil,
             secondary: nil,
             providerCost: nil,
+            mistralUsage: self,
             updatedAt: self.updatedAt,
-            identity: nil)
+            identity: identity)
+    }
+
+    public func toCostUsageTokenSnapshot(historyDays: Int = 30) -> CostUsageTokenSnapshot {
+        let clampedHistoryDays = max(1, min(365, historyDays))
+        let selected = self.daily
+        let entries = selected.map { bucket in
+            let modelBreakdowns = bucket.models.map {
+                CostUsageDailyReport.ModelBreakdown(
+                    modelName: $0.name,
+                    costUSD: max($0.cost, 0),
+                    totalTokens: $0.totalTokens)
+            }
+            let modelsUsed = bucket.models.map(\.name)
+            return CostUsageDailyReport.Entry(
+                date: bucket.day,
+                inputTokens: bucket.inputTokens,
+                outputTokens: bucket.outputTokens,
+                cacheReadTokens: bucket.cachedTokens,
+                cacheCreationTokens: nil,
+                totalTokens: bucket.totalTokens,
+                costUSD: max(bucket.cost, 0),
+                modelsUsed: modelsUsed.isEmpty ? nil : modelsUsed,
+                modelBreakdowns: modelBreakdowns.isEmpty ? nil : modelBreakdowns)
+        }
+        let latest = selected.last
+        let totalCost = max(self.totalCost, 0)
+        let totalTokens = selected.isEmpty
+            ? self.totalInputTokens + self.totalCachedTokens + self.totalOutputTokens
+            : selected.reduce(0) { $0 + $1.totalTokens }
+        let tokens = totalTokens > 0 ? totalTokens : nil
+        return CostUsageTokenSnapshot(
+            sessionTokens: latest?.totalTokens,
+            sessionCostUSD: latest.map { max($0.cost, 0) },
+            last30DaysTokens: tokens,
+            last30DaysCostUSD: totalCost,
+            currencyCode: self.currency,
+            historyDays: selected.isEmpty ? clampedHistoryDays : max(1, min(365, selected.count)),
+            historyLabel: "This month",
+            daily: entries,
+            updatedAt: self.updatedAt)
     }
 }

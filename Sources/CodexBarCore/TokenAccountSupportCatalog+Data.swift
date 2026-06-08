@@ -2,10 +2,18 @@ import Foundation
 
 extension TokenAccountSupportCatalog {
     static let supportByProvider: [UsageProvider: TokenAccountSupport] = [
+        .openai: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple OpenAI API keys.",
+            placeholder: "sk-admin-...",
+            injection: .environment(key: OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil,
+            environmentKeysToScrub: [OpenAIAPISettingsReader.projectIDEnvironmentKey]),
         .claude: TokenAccountSupport(
-            title: "Session tokens",
-            subtitle: "Store Claude sessionKey cookies or OAuth access tokens.",
-            placeholder: "Paste sessionKey or OAuth token…",
+            title: "Claude credentials",
+            subtitle: "Store Claude sessionKey cookies, OAuth tokens, or Anthropic Admin API keys.",
+            placeholder: "Paste sessionKey, OAuth token, or sk-ant-admin…",
             injection: .cookieHeader,
             requiresManualCookieSource: true,
             cookieName: "sessionKey"),
@@ -14,6 +22,13 @@ extension TokenAccountSupportCatalog {
             subtitle: "Store multiple DeepSeek API keys.",
             placeholder: "Paste API key…",
             injection: .environment(key: DeepSeekSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        .antigravity: TokenAccountSupport(
+            title: "Google accounts",
+            subtitle: "Store multiple Antigravity Google OAuth accounts for quick switching.",
+            placeholder: "Antigravity OAuth credentials JSON",
+            injection: .environment(key: AntigravityOAuthCredentialsStore.environmentCredentialsKey),
             requiresManualCookieSource: false,
             cookieName: nil),
         .zai: TokenAccountSupport(
@@ -46,8 +61,8 @@ extension TokenAccountSupportCatalog {
             cookieName: nil),
         .factory: TokenAccountSupport(
             title: "Session tokens",
-            subtitle: "Store multiple Factory Cookie headers.",
-            placeholder: "Cookie: …",
+            subtitle: "Store multiple Factory Cookie or Authorization headers.",
+            placeholder: "Cookie: … or Authorization: Bearer …",
             injection: .cookieHeader,
             requiresManualCookieSource: true,
             cookieName: nil),
@@ -58,6 +73,13 @@ extension TokenAccountSupportCatalog {
             injection: .cookieHeader,
             requiresManualCookieSource: true,
             cookieName: nil),
+        .manus: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple Manus session_id cookies.",
+            placeholder: "session_id=…",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: "session_id"),
         .augment: TokenAccountSupport(
             title: "Session tokens",
             subtitle: "Store multiple Augment Cookie headers.",
@@ -92,6 +114,41 @@ extension TokenAccountSupportCatalog {
             placeholder: "Paste GitHub token…",
             injection: .environment(key: "COPILOT_API_TOKEN"),
             requiresManualCookieSource: false,
+            cookieName: nil),
+        .venice: TokenAccountSupport(
+            title: "API tokens",
+            subtitle: "Store multiple Venice API keys.",
+            placeholder: "Paste API key…",
+            injection: .environment(key: VeniceSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        .elevenlabs: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple ElevenLabs API keys.",
+            placeholder: "Paste API key…",
+            injection: .environment(key: ElevenLabsSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        .groq: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple Groq API keys.",
+            placeholder: "Paste Groq API key…",
+            injection: .environment(key: GroqSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        .llmproxy: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple LLM Proxy API keys.",
+            placeholder: "Paste proxy API key…",
+            injection: .environment(key: LLMProxySettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        .stepfun: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple StepFun Oasis-Token values.",
+            placeholder: "Oasis-Token=…",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
             cookieName: nil),
     ]
 }

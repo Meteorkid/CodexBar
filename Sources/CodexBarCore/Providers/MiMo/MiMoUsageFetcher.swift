@@ -3,269 +3,258 @@ import Foundation
 import FoundationNetworking
 #endif
 
-// MARK: - Domain snapshot
-
-public struct MiMoUsageSnapshot: Sendable {
-    public let isConnected: Bool
-    public let modelCount: Int
-    public let modelNames: [String]
-    public let balanceInfo: MiMoBalanceInfo?
-    public let updatedAt: Date
-
-    public init(
-        isConnected: Bool,
-        modelCount: Int,
-        modelNames: [String],
-        balanceInfo: MiMoBalanceInfo? = nil,
-        updatedAt: Date)
-    {
-        self.isConnected = isConnected
-        self.modelCount = modelCount
-        self.modelNames = modelNames
-        self.balanceInfo = balanceInfo
-        self.updatedAt = updatedAt
-    }
-
-    public func toUsageSnapshot() -> UsageSnapshot {
-        let detail: String
-        let usedPercent: Double
-        if let balance = self.balanceInfo {
-            let remaining = balance.availableBalance
-            let total = balance.totalBalance
-            usedPercent = total > 0 ? max(0, min(100, (total - remaining) / total * 100)) : 0
-            detail = String(format: "¥%.2f / ¥%.2f", remaining, total)
-        } else if self.isConnected {
-            let names = self.modelNames.joined(separator: ", ")
-            detail = "API Connected — \(self.modelCount) models (\(names))"
-            usedPercent = 0
-        } else {
-            detail = "API not connected"
-            usedPercent = 100
-        }
-
-        let identity = ProviderIdentitySnapshot(
-            providerID: .mimo,
-            accountEmail: nil,
-            accountOrganization: nil,
-            loginMethod: nil)
-
-        let primaryWindow = RateWindow(
-            usedPercent: usedPercent,
-            windowMinutes: nil,
-            resetsAt: nil,
-            resetDescription: detail)
-
-        var secondaryWindow: RateWindow?
-        if let balance = self.balanceInfo {
-            secondaryWindow = RateWindow(
-                usedPercent: 0,
-                windowMinutes: nil,
-                resetsAt: nil,
-                resetDescription: "Used: ¥\(String(format: "%.2f", balance.usedBalance))")
-        }
-
-        let providerCost: ProviderCostSnapshot?
-        if let balance = self.balanceInfo {
-            providerCost = ProviderCostSnapshot(
-                used: balance.usedBalance,
-                limit: balance.totalBalance,
-                currencyCode: "CNY",
-                period: nil,
-                resetsAt: nil,
-                updatedAt: self.updatedAt)
-        } else {
-            providerCost = nil
-        }
-
-        return UsageSnapshot(
-            primary: primaryWindow,
-            secondary: secondaryWindow,
-            tertiary: nil,
-            providerCost: providerCost,
-            updatedAt: self.updatedAt,
-            identity: identity)
-    }
-}
-
-public struct MiMoBalanceInfo: Sendable {
-    public let availableBalance: Double
-    public let usedBalance: Double
-    public let totalBalance: Double
-
-    public init(availableBalance: Double, usedBalance: Double, totalBalance: Double) {
-        self.availableBalance = availableBalance
-        self.usedBalance = usedBalance
-        self.totalBalance = totalBalance
-    }
-}
-
-// MARK: - Errors
-
-public enum MiMoUsageError: LocalizedError, Sendable {
-    case missingCredentials
+public enum MiMoSettingsError: LocalizedError, Sendable {
     case missingCookie
-    case networkError(String)
-    case apiError(String)
-    case parseFailed(String)
+    case invalidCookie
 
     public var errorDescription: String? {
         switch self {
-        case .missingCredentials:
-            "Missing MiMo API key."
         case .missingCookie:
-            "Missing MiMo session cookie."
-        case let .networkError(message):
-            "MiMo network error: \(message)"
-        case let .apiError(message):
-            "MiMo API error: \(message)"
-        case let .parseFailed(message):
-            "Failed to parse MiMo response: \(message)"
+            "No Xiaomi MiMo browser session found. Log in at platform.xiaomimimo.com first."
+        case .invalidCookie:
+            "Xiaomi MiMo requires the api-platform_serviceToken and userId cookies."
         }
     }
 }
 
-// MARK: - Fetcher
+public enum MiMoUsageError: LocalizedError, Sendable {
+    case invalidCredentials
+    case loginRequired
+    case parseFailed(String)
+    case networkError(String)
 
-public struct MiMoUsageFetcher: Sendable {
-    private static let log = CodexBarLog.logger(LogCategories.mimoUsage)
-    private static let webLog = CodexBarLog.logger(LogCategories.mimoWeb)
-    // MiMo 使用 Anthropic API 兼容端点
-    private static let baseURL =
-        URL(string: "https://token-plan-sgp.xiaomimimo.com/anthropic")!
-    private static let balanceURL =
-        URL(string: "https://platform.xiaomimimo.com/api/user/balance")!
-    private static let supportedModels = ["mimo-v2.5-pro", "mimo-v2.5"]
-
-    public static func verifyAPI(
-        apiKey: String,
-        baseURL: URL = URL(string: "https://token-plan-sgp.xiaomimimo.com/anthropic")!) async throws -> MiMoUsageSnapshot
-    {
-        guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            throw MiMoUsageError.missingCredentials
+    public var errorDescription: String? {
+        switch self {
+        case .invalidCredentials:
+            "Xiaomi MiMo browser session expired. Log in again."
+        case .loginRequired:
+            "Xiaomi MiMo login required."
+        case let .parseFailed(message):
+            "Could not parse Xiaomi MiMo balance: \(message)"
+        case let .networkError(message):
+            "Xiaomi MiMo request failed: \(message)"
         }
-
-        // 通过发送最小请求验证 API 连接
-        let messagesURL = baseURL.appendingPathComponent("v1/messages")
-        var request = URLRequest(url: messagesURL)
-        request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.timeoutInterval = 15
-
-        let body: [String: Any] = [
-            "model": "mimo-v2.5-pro",
-            "max_tokens": 5,
-            "messages": [["role": "user", "content": "hi"]],
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw MiMoUsageError.networkError("Invalid response")
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            let respBody = String(data: data, encoding: .utf8) ?? ""
-            Self.log.error("MiMo API returned \(httpResponse.statusCode): \(respBody)")
-            throw MiMoUsageError.apiError("HTTP \(httpResponse.statusCode)")
-        }
-
-        return try self.parseMessagesResponse(data: data)
     }
+}
 
-    public static func fetchBalance(
+public enum MiMoSettingsReader {
+    public static let apiURLKey = "MIMO_API_URL"
+
+    public static func apiURL(environment: [String: String] = ProcessInfo.processInfo.environment) -> URL {
+        if let override = environment[self.apiURLKey],
+           let url = URL(string: override.trimmingCharacters(in: .whitespacesAndNewlines)),
+           let scheme = url.scheme, !scheme.isEmpty
+        {
+            return url
+        }
+        return URL(string: "https://platform.xiaomimimo.com/api/v1")!
+    }
+}
+
+public enum MiMoUsageFetcher {
+    private static let requestTimeout: TimeInterval = 15
+
+    public static func fetchUsage(
         cookieHeader: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date()) async throws -> MiMoUsageSnapshot
     {
-        var request = URLRequest(url: self.balanceURL)
+        guard let normalizedCookie = MiMoCookieHeader.normalizedHeader(from: cookieHeader) else {
+            throw MiMoSettingsError.invalidCookie
+        }
+
+        let balanceURL = MiMoSettingsReader.apiURL(environment: environment).appendingPathComponent("balance")
+        let tokenDetailURL = MiMoSettingsReader.apiURL(environment: environment)
+            .appendingPathComponent("tokenPlan/detail")
+        let tokenUsageURL = MiMoSettingsReader.apiURL(environment: environment)
+            .appendingPathComponent("tokenPlan/usage")
+
+        async let balanceData = self.fetchAuthenticated(url: balanceURL, cookie: normalizedCookie)
+        let tokenDetailData: Data? = try? await self.fetchAuthenticated(url: tokenDetailURL, cookie: normalizedCookie)
+        let tokenUsageData: Data? = try? await self.fetchAuthenticated(url: tokenUsageURL, cookie: normalizedCookie)
+
+        return try await self.parseCombinedSnapshot(
+            balanceData: balanceData,
+            tokenDetailData: tokenDetailData,
+            tokenUsageData: tokenUsageData,
+            now: now)
+    }
+
+    private static func fetchAuthenticated(
+        url: URL,
+        cookie: String,
+        environment: [String: String] = ProcessInfo.processInfo.environment) async throws -> Data
+    {
+        var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
-            "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36"
-        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        request.setValue("https://platform.xiaomimimo.com/console/balance", forHTTPHeaderField: "Referer")
+        request.timeoutInterval = Self.requestTimeout
+        request.setValue("application/json, text/plain, */*", forHTTPHeaderField: "Accept")
+        request.setValue(cookie, forHTTPHeaderField: "Cookie")
+        request.setValue("en-US,en;q=0.9", forHTTPHeaderField: "Accept-Language")
+        request.setValue("UTC+01:00", forHTTPHeaderField: "x-timeZone")
+        request.setValue("https://platform.xiaomimimo.com", forHTTPHeaderField: "Origin")
+        request.setValue("https://platform.xiaomimimo.com/#/console/balance", forHTTPHeaderField: "Referer")
+        request.setValue(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36",
+            forHTTPHeaderField: "User-Agent")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw MiMoUsageError.networkError("Invalid response")
+        let response = try await ProviderHTTPClient.shared.response(for: request)
+
+        switch response.statusCode {
+        case 200:
+            break
+        case 401:
+            throw MiMoUsageError.loginRequired
+        case 403:
+            throw MiMoUsageError.invalidCredentials
+        default:
+            throw MiMoUsageError.networkError("HTTP \(response.statusCode)")
         }
 
-        guard httpResponse.statusCode == 200 else {
-            let body = String(data: data, encoding: .utf8) ?? "<binary>"
-            Self.webLog.error("MiMo balance API returned \(httpResponse.statusCode): \(body)")
-            if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-                throw MiMoUsageError.apiError("Cookie expired or invalid")
+        return response.data
+    }
+
+    static func parseCombinedSnapshot(
+        balanceData: Data,
+        tokenDetailData: Data?,
+        tokenUsageData: Data?,
+        now: Date = Date()) throws -> MiMoUsageSnapshot
+    {
+        let balanceSnapshot = try self.parseUsageSnapshot(from: balanceData, now: now)
+        let planDetail: (planCode: String?, periodEnd: Date?, expired: Bool) = {
+            guard let data = tokenDetailData, let result = try? self.parseTokenPlanDetail(from: data) else {
+                return (planCode: nil, periodEnd: nil, expired: false)
             }
-            throw MiMoUsageError.apiError("HTTP \(httpResponse.statusCode)")
-        }
+            return result
+        }()
+        let planUsage: (used: Int, limit: Int, percent: Double) = {
+            guard let data = tokenUsageData, let result = try? self.parseTokenPlanUsage(from: data) else {
+                return (used: 0, limit: 0, percent: 0)
+            }
+            return result
+        }()
 
-        let balanceInfo = try self.parseBalanceResponse(data: data)
         return MiMoUsageSnapshot(
-            isConnected: true,
-            modelCount: 0,
-            modelNames: [],
-            balanceInfo: balanceInfo,
+            balance: balanceSnapshot.balance,
+            currency: balanceSnapshot.currency,
+            planCode: planDetail.planCode,
+            planPeriodEnd: planDetail.periodEnd,
+            planExpired: planDetail.expired,
+            tokenUsed: planUsage.used,
+            tokenLimit: planUsage.limit,
+            tokenPercent: planUsage.percent,
             updatedAt: now)
     }
 
-    static func _parseBalanceForTesting(_ data: Data) throws -> MiMoBalanceInfo {
-        try self.parseBalanceResponse(data: data)
-    }
+    static func parseUsageSnapshot(from data: Data, now: Date = Date()) throws -> MiMoUsageSnapshot {
+        let decoder = JSONDecoder()
+        let response = try decoder.decode(BalanceResponse.self, from: data)
 
-    static func _parseMessagesForTesting(_ data: Data) throws -> MiMoUsageSnapshot {
-        try self.parseMessagesResponse(data: data)
-    }
-
-    private static func parseMessagesResponse(data: Data) throws -> MiMoUsageSnapshot {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let model = json["model"] as? String
-        else {
-            throw MiMoUsageError.parseFailed("Invalid Anthropic Messages response")
-        }
-
-        return MiMoUsageSnapshot(
-            isConnected: true,
-            modelCount: self.supportedModels.count,
-            modelNames: self.supportedModels,
-            updatedAt: Date())
-    }
-
-    private static func parseBalanceResponse(data: Data) throws -> MiMoBalanceInfo {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw MiMoUsageError.parseFailed("Invalid JSON")
-        }
-
-        // Try "data" wrapper first
-        let root = (json["data"] as? [String: Any]) ?? json
-
-        let available = self.extractDouble(from: root, keys: [
-            "available_balance", "availableBalance", "available_quota",
-            "remain_quota", "balance", "remain"])
-        let used = self.extractDouble(from: root, keys: [
-            "used_balance", "usedBalance", "used_quota", "used"])
-        let total = self.extractDouble(from: root, keys: [
-            "total_balance", "totalBalance", "total_quota", "total", "quota"])
-
-        let totalBalance = total ?? (available ?? 0) + (used ?? 0)
-
-        return MiMoBalanceInfo(
-            availableBalance: available ?? 0,
-            usedBalance: used ?? max(0, totalBalance - (available ?? 0)),
-            totalBalance: totalBalance)
-    }
-
-    private static func extractDouble(from dict: [String: Any], keys: [String]) -> Double? {
-        for key in keys {
-            if let value = dict[key] {
-                if let d = value as? Double { return d }
-                if let i = value as? Int { return Double(i) }
-                if let s = value as? String, let d = Double(s) { return d }
+        guard response.code == 0 else {
+            let message = response.message?.trimmingCharacters(in: .whitespacesAndNewlines)
+            if response.code == 401 {
+                throw MiMoUsageError.loginRequired
             }
+            if response.code == 403 {
+                throw MiMoUsageError.invalidCredentials
+            }
+            throw MiMoUsageError.parseFailed(message?.isEmpty == false ? message! : "code \(response.code)")
         }
-        return nil
+
+        guard let data = response.data else {
+            throw MiMoUsageError.parseFailed("Missing balance payload")
+        }
+        guard let balance = Double(data.balance) else {
+            throw MiMoUsageError.parseFailed("Invalid balance value")
+        }
+
+        let currency = data.currency.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !currency.isEmpty else {
+            throw MiMoUsageError.parseFailed("Missing currency")
+        }
+
+        return MiMoUsageSnapshot(balance: balance, currency: currency, updatedAt: now)
+    }
+
+    static func parseTokenPlanDetail(from data: Data) throws -> (planCode: String?, periodEnd: Date?, expired: Bool) {
+        let decoder = JSONDecoder()
+        let response = try decoder.decode(TokenPlanDetailResponse.self, from: data)
+
+        guard response.code == 0, let payload = response.data else {
+            return (planCode: nil, periodEnd: nil, expired: false)
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let periodEnd: Date? = if let dateStr = payload.currentPeriodEnd {
+            formatter.date(from: dateStr)
+        } else {
+            nil
+        }
+
+        return (planCode: payload.planCode, periodEnd: periodEnd, expired: payload.expired)
+    }
+
+    static func parseTokenPlanUsage(from data: Data) throws -> (used: Int, limit: Int, percent: Double) {
+        let decoder = JSONDecoder()
+        let response = try decoder.decode(TokenPlanUsageResponse.self, from: data)
+
+        guard response.code == 0,
+              let monthUsage = response.data?.monthUsage,
+              let item = monthUsage.items.first
+        else {
+            return (used: 0, limit: 0, percent: 0)
+        }
+
+        return (used: item.used, limit: item.limit, percent: item.percent)
+    }
+
+    private struct BalanceResponse: Decodable {
+        let code: Int
+        let message: String?
+        let data: BalancePayload?
+    }
+
+    private struct BalancePayload: Decodable {
+        let balance: String
+        let currency: String
+    }
+
+    private struct TokenPlanDetailResponse: Decodable {
+        let code: Int
+        let message: String?
+        let data: TokenPlanDetailPayload?
+    }
+
+    private struct TokenPlanDetailPayload: Decodable {
+        let planCode: String?
+        let currentPeriodEnd: String?
+        let expired: Bool
+    }
+
+    private struct TokenPlanUsageResponse: Decodable {
+        let code: Int
+        let message: String?
+        let data: TokenPlanUsagePayload?
+    }
+
+    private struct TokenPlanUsagePayload: Decodable {
+        let monthUsage: MonthUsage?
+    }
+
+    private struct MonthUsage: Decodable {
+        let percent: Double
+        let items: [UsageItem]
+    }
+
+    private struct UsageItem: Decodable {
+        let name: String
+        let used: Int
+        let limit: Int
+        let percent: Double
     }
 }
-

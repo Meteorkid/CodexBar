@@ -28,6 +28,9 @@ struct MistralUsageParserTests {
         #expect(snapshot.modelCount == 2)
         #expect(snapshot.currency == "EUR")
         #expect(snapshot.currencySymbol == "€")
+        #expect(snapshot.daily.map(\.day) == ["2025-11-14", "2025-11-24"])
+        #expect(snapshot.daily.first?.totalTokens == 11121 + 1115 + 20 + 500)
+        #expect(snapshot.daily.first?.models.first?.name == "mistral-large-latest")
     }
 
     @Test
@@ -57,6 +60,49 @@ struct MistralUsageParserTests {
     }
 
     @Test
+    func `daily spend keeps non token Mistral units out of token totals`() throws {
+        let json = """
+        {
+          "libraries_api": {
+            "pages": {
+              "models": {
+                "mistral-ocr-latest": {
+                  "input": [
+                    {
+                      "billing_metric": "pages",
+                      "billing_display_name": "OCR pages",
+                      "billing_group": "input",
+                      "timestamp": "2025-11-15",
+                      "value": 42,
+                      "value_paid": 42
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "currency": "EUR",
+          "currency_symbol": "€",
+          "prices": [
+            {
+              "billing_metric": "pages",
+              "billing_group": "input",
+              "price": "0.01"
+            }
+          ]
+        }
+        """
+        let snapshot = try MistralUsageFetcher.parseResponse(data: Data(json.utf8), updatedAt: Date())
+
+        #expect(abs(snapshot.totalCost - 0.42) < 0.0001)
+        #expect(snapshot.totalInputTokens == 0)
+        #expect(abs((snapshot.daily.first?.cost ?? 0) - 0.42) < 0.0001)
+        #expect(snapshot.daily.first?.totalTokens == 0)
+        #expect(abs((snapshot.daily.first?.models.first?.cost ?? 0) - 0.42) < 0.0001)
+        #expect(snapshot.daily.first?.models.first?.totalTokens == 0)
+    }
+
+    @Test
     func `parses dates from response`() throws {
         let data = try #require(Self.novemberResponseJSON.data(using: .utf8))
         let snapshot = try MistralUsageFetcher.parseResponse(data: data, updatedAt: Date())
@@ -64,7 +110,8 @@ struct MistralUsageParserTests {
         #expect(snapshot.startDate != nil)
         #expect(snapshot.endDate != nil)
 
-        let calendar = Calendar.current
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
         if let start = snapshot.startDate {
             #expect(calendar.component(.month, from: start) == 11)
             #expect(calendar.component(.year, from: start) == 2025)
@@ -82,7 +129,7 @@ struct MistralUsageParserTests {
 
 struct MistralUsageSnapshotConversionTests {
     @Test
-    func `converts cost into primary resetDescription so it surfaces as detail text`() {
+    func `converts cost into text only current month api spend`() {
         let snapshot = MistralUsageSnapshot(
             totalCost: 1.2345,
             currency: "EUR",
@@ -96,17 +143,14 @@ struct MistralUsageSnapshotConversionTests {
             updatedAt: Date())
 
         let usage = snapshot.toUsageSnapshot()
-        #expect(usage.primary != nil)
-        #expect(usage.primary?.usedPercent == 0)
-        #expect(usage.primary?.resetDescription?.contains("€1.2345") == true)
-        // providerCost is intentionally nil: the menu card's providerCostSection requires
-        // limit > 0 to render a bar, and Mistral is pay-as-you-go with no quota. The cost
-        // is surfaced via primary.resetDescription (rendered as detail text in the card).
+        #expect(usage.primary == nil)
+        #expect(usage.identity?.providerID == .mistral)
+        #expect(usage.identity?.loginMethod == "API spend: €1.2345 this month")
         #expect(usage.providerCost == nil)
     }
 
     @Test
-    func `converts zero cost with no-usage description`() {
+    func `converts zero cost into zero spend text`() {
         let snapshot = MistralUsageSnapshot(
             totalCost: 0,
             currency: "USD",
@@ -120,7 +164,140 @@ struct MistralUsageSnapshotConversionTests {
             updatedAt: Date())
 
         let usage = snapshot.toUsageSnapshot()
-        #expect(usage.primary?.resetDescription == "No usage this month")
+        #expect(usage.primary == nil)
+        #expect(usage.identity?.loginMethod == "API spend: $0.0000 this month")
+    }
+
+    @Test
+    func `converts billing usage into cost token snapshot`() {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let snapshot = MistralUsageSnapshot(
+            totalCost: 1.75,
+            currency: "eur",
+            currencySymbol: "€",
+            totalInputTokens: 300,
+            totalOutputTokens: 150,
+            totalCachedTokens: 50,
+            modelCount: 2,
+            daily: [
+                MistralDailyUsageBucket(
+                    day: "2023-11-14",
+                    cost: 1.5,
+                    inputTokens: 100,
+                    cachedTokens: 20,
+                    outputTokens: 50,
+                    models: [
+                        MistralDailyUsageBucket.ModelBreakdown(
+                            name: "mistral-large",
+                            cost: 1.5,
+                            inputTokens: 100,
+                            cachedTokens: 20,
+                            outputTokens: 50),
+                    ]),
+                MistralDailyUsageBucket(
+                    day: "2023-11-15",
+                    cost: 0.25,
+                    inputTokens: 200,
+                    cachedTokens: 30,
+                    outputTokens: 100,
+                    models: [
+                        MistralDailyUsageBucket.ModelBreakdown(
+                            name: "mistral-small",
+                            cost: 0.25,
+                            inputTokens: 200,
+                            cachedTokens: 30,
+                            outputTokens: 100),
+                    ]),
+            ],
+            startDate: nil,
+            endDate: nil,
+            updatedAt: now)
+
+        let cost = snapshot.toCostUsageTokenSnapshot(historyDays: 1)
+        #expect(cost.currencyCode == "EUR")
+        #expect(cost.historyLabel == "This month")
+        #expect(cost.historyDays == 2)
+        #expect(cost.sessionCostUSD == 0.25)
+        #expect(cost.sessionTokens == 330)
+        #expect(cost.last30DaysCostUSD == 1.75)
+        #expect(cost.last30DaysTokens == 500)
+        #expect(cost.daily.count == 2)
+        #expect(cost.daily.last?.modelsUsed == ["mistral-small"])
+    }
+
+    @Test
+    func `clamps negative billing adjustments in cost token snapshot`() {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let snapshot = MistralUsageSnapshot(
+            totalCost: -2,
+            currency: "EUR",
+            currencySymbol: "€",
+            totalInputTokens: 100,
+            totalOutputTokens: 25,
+            totalCachedTokens: 0,
+            modelCount: 1,
+            daily: [
+                MistralDailyUsageBucket(
+                    day: "2023-11-14",
+                    cost: -1.5,
+                    inputTokens: 100,
+                    cachedTokens: 0,
+                    outputTokens: 25,
+                    models: [
+                        MistralDailyUsageBucket.ModelBreakdown(
+                            name: "mistral-large",
+                            cost: -1.5,
+                            inputTokens: 100,
+                            cachedTokens: 0,
+                            outputTokens: 25),
+                    ]),
+            ],
+            startDate: nil,
+            endDate: nil,
+            updatedAt: now)
+
+        let cost = snapshot.toCostUsageTokenSnapshot()
+        #expect(cost.sessionCostUSD == 0)
+        #expect(cost.last30DaysCostUSD == 0)
+        #expect(cost.daily.first?.costUSD == 0)
+        #expect(cost.daily.first?.modelBreakdowns?.first?.costUSD == 0)
+    }
+
+    @Test
+    func `preserves net monthly cost when billing includes credits`() {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let snapshot = MistralUsageSnapshot(
+            totalCost: 8,
+            currency: "EUR",
+            currencySymbol: "€",
+            totalInputTokens: 100,
+            totalOutputTokens: 25,
+            totalCachedTokens: 0,
+            modelCount: 1,
+            daily: [
+                MistralDailyUsageBucket(
+                    day: "2023-11-14",
+                    cost: 10,
+                    inputTokens: 100,
+                    cachedTokens: 0,
+                    outputTokens: 25,
+                    models: []),
+                MistralDailyUsageBucket(
+                    day: "2023-11-15",
+                    cost: -2,
+                    inputTokens: 0,
+                    cachedTokens: 0,
+                    outputTokens: 0,
+                    models: []),
+            ],
+            startDate: nil,
+            endDate: nil,
+            updatedAt: now)
+
+        let cost = snapshot.toCostUsageTokenSnapshot()
+        #expect(cost.last30DaysCostUSD == 8)
+        #expect(cost.sessionCostUSD == 0)
+        #expect(cost.daily.map(\.costUSD) == [10, 0])
     }
 }
 
@@ -218,5 +395,6 @@ struct MistralStrategyTests {
         #expect(descriptor.cli.name == "mistral")
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .web])
         #expect(descriptor.branding.iconResourceName == "ProviderIcon-mistral")
+        #expect(descriptor.tokenCost.supportsTokenCost)
     }
 }
