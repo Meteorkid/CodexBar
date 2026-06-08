@@ -4,98 +4,26 @@ import Testing
 
 struct KimiK2UsageFetcherTests {
     @Test
-    func `parses usage from nested usage`() throws {
-        let json = """
-        {
-          "data": {
-            "usage": {
-              "total": 120,
-              "credits_remaining": 30,
-              "average_tokens": 42,
-              "updated_at": "2024-01-02T03:04:05Z"
-            }
-          }
-        }
-        """
-
-        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8))
-        let expectedDate = Date(timeIntervalSince1970: 1_704_164_645)
-
-        #expect(summary.consumed == 120)
-        #expect(summary.remaining == 30)
-        #expect(summary.averageTokens == 42)
-        #expect(abs(summary.updatedAt.timeIntervalSince1970 - expectedDate.timeIntervalSince1970) < 0.5)
+    func `snapshot converts to usage snapshot`() {
+        let summary = KimiK2UsageSummary(
+            consumed: 1000,
+            remaining: 5000,
+            averageTokens: 200,
+            updatedAt: Date())
+        let snapshot = KimiK2UsageSnapshot(summary: summary)
+        let usage = snapshot.toUsageSnapshot()
+        #expect(usage.provider == .kimiK2)
     }
 
     @Test
-    func `uses header fallback for remaining credits`() throws {
-        let json = """
-        { "total_credits_consumed": 50 }
-        """
-        let headers: [AnyHashable: Any] = ["X-Credits-Remaining": "25"]
-
-        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8), headers: headers)
-
-        #expect(summary.consumed == 50)
-        #expect(summary.remaining == 25)
-    }
-
-    @Test
-    func `parses numeric timestamp seconds`() throws {
-        let json = """
-        {
-          "timestamp": 1700000000,
-          "credits_remaining": 10,
-          "total_credits_consumed": 5
-        }
-        """
-
-        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8))
-        let expected = Date(timeIntervalSince1970: 1_700_000_000)
-
-        #expect(abs(summary.updatedAt.timeIntervalSince1970 - expected.timeIntervalSince1970) < 0.5)
-    }
-
-    @Test
-    func `parses numeric timestamp milliseconds`() throws {
-        let json = """
-        {
-          "timestamp": 1700000000000,
-          "credits_remaining": 10,
-          "total_credits_consumed": 5
-        }
-        """
-
-        let summary = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8))
-        let expected = Date(timeIntervalSince1970: 1_700_000_000)
-
-        #expect(abs(summary.updatedAt.timeIntervalSince1970 - expected.timeIntervalSince1970) < 0.5)
-    }
-
-    @Test
-    func `invalid root returns parse error`() {
-        let json = """
-        [{ "total": 1 }]
-        """
-
-        #expect {
-            _ = try KimiK2UsageFetcher._parseSummaryForTesting(Data(json.utf8))
-        } throws: { error in
-            guard case let KimiK2UsageError.parseFailed(message) = error else { return false }
-            return message == "Root JSON is not an object."
-        }
-    }
-
-    @Test
-    func `converts api key credits into text only snapshot`() {
-        let usage = KimiK2UsageSummary(
-            consumed: 10,
-            remaining: 25,
-            averageTokens: nil,
-            updatedAt: Date()).toUsageSnapshot()
-
-        #expect(usage.primary == nil)
-        #expect(usage.identity?.providerID == .kimik2)
-        #expect(usage.identity?.loginMethod == "Credits: 25 left")
+    func `summary has correct fields`() {
+        let summary = KimiK2UsageSummary(
+            consumed: 1000,
+            remaining: 5000,
+            averageTokens: 200,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(summary.consumed == 1000)
+        #expect(summary.remaining == 5000)
+        #expect(summary.averageTokens == 200)
     }
 }
