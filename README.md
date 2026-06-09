@@ -2,12 +2,9 @@
 
 > Every AI coding limit, in your menu bar.
 
-[![Latest release](https://img.shields.io/github/v/release/steipete/CodexBar?style=flat-square&color=0a0a0c)](https://github.com/steipete/CodexBar/releases/latest)
-[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-0a0a0c?style=flat-square)](https://github.com/steipete/CodexBar/releases/latest)
-[![Homebrew](https://img.shields.io/badge/brew-steipete%2Ftap%2Fcodexbar-orange?style=flat-square)](https://github.com/steipete/homebrew-tap)
-[![AUR](https://img.shields.io/aur/version/codexbar-cli?style=flat-square&color=1793d1)](https://aur.archlinux.org/packages/codexbar-cli)
+[![Latest release](https://img.shields.io/github/v/release/Meteorkid/CodexBar?style=flat-square&color=0a0a0c)](https://github.com/Meteorkid/CodexBar/releases/latest)
+[![macOS 14+](https://img.shields.io/badge/macOS-14%2B-0a0a0c?style=flat-square)](https://github.com/Meteorkid/CodexBar/releases/latest)
 [![License: MIT](https://img.shields.io/badge/license-MIT-6e5aff?style=flat-square)](LICENSE)
-[![Site](https://img.shields.io/badge/site-codexbar.app-16d3b4?style=flat-square)](https://codexbar.app)
 
 <a href="https://codexbar.app"><img src="docs/social.png" alt="CodexBar — every AI coding limit in your menu bar. 40+ providers." width="100%" /></a>
 
@@ -28,7 +25,7 @@ Tiny macOS 14+ menu bar app that keeps **AI coding-provider limits visible** and
 - macOS 14+ (Sonoma)
 
 ### GitHub Releases
-Download: <https://github.com/steipete/CodexBar/releases>
+Download: <https://github.com/Meteorkid/CodexBar/releases>
 
 ### Homebrew
 ```bash

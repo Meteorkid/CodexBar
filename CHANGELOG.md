@@ -1,6 +1,20 @@
 # Changelog
 
-## 0.32.5 — Unreleased
+## 0.32.6 — 2026-06-09
+
+### Added
+- Fork: 本地特有 Provider 支持（MiniMax、Kimi、智谱、通义、百度、Ollama、LM Studio 等）
+- Fork: MiMo provider 支持
+- Fork: KimiK2 余额 API 集成
+- Fork: CookieBookmarklet 一键获取 + 夸克浏览器支持
+- Fork: 9 个新 Provider 支持 + 额度警告通知系统
+
+### Fixed
+- Fork: 修复合并后的 6 个关键编译问题
+- Fork: 恢复本地特有功能（10 个测试文件 + 3 个源文件）
+- Fork: 为本地 Provider 添加测试覆盖（6 个测试文件）
+
+## 0.32.5 — 2026-06-09
 
 ### Added
 - Localization: add French as a selectable app language (#1241). Thanks @Yuxin-Qiao!
