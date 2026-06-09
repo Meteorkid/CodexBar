@@ -10,6 +10,15 @@
 
 Tiny macOS 14+ menu bar app that keeps **AI coding-provider limits visible** and shows when each window resets. Codex, OpenAI, Claude, Cursor, Gemini, Copilot, Grok, GroqCloud, ElevenLabs, Deepgram, z.ai, MiniMax, Kiro, Vertex AI, Augment, OpenRouter, LLM Proxy, Codebuff, Command Code, AWS Bedrock, and many newer coding providers. One status item per provider, or Merge Icons mode with a provider switcher. No Dock icon, minimal UI, dynamic bar icons.
 
+### Fork 特性
+本 fork 在原版基础上增加了以下特性：
+- 🇨🇳 **中国厂商支持**：MiniMax、Kimi、智谱、通义、百度等国内 AI 服务商
+- 🤖 **MiMo Provider**：小米 MiMo 模型支持
+- 🔑 **KimiK2 余额 API**：Kimi K2 信用额度查询
+- 🍪 **CookieBookmarklet**：一键获取浏览器 Cookie + 夸克浏览器支持
+- 📊 **额度警告通知**：当配额即将用尽时自动提醒
+- 🧪 **完整测试覆盖**：为本地 Provider 添加了 6 个测试文件
+
 <img src="codexbar.png" alt="CodexBar menu popover with provider tiles, usage bars, and reset countdowns" width="520" />
 
 ## Why
