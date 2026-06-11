@@ -329,62 +329,6 @@ extension SettingsStore {
         }
     }
 
-    var quotaWarningNotificationsEnabled: Bool {
-        get { self.defaultsState.quotaWarningNotificationsEnabled }
-        set {
-            self.defaultsState.quotaWarningNotificationsEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "quotaWarningNotificationsEnabled")
-        }
-    }
-
-    var quotaWarningSessionEnabled: Bool {
-        get { self.defaultsState.quotaWarningSessionEnabled }
-        set {
-            self.defaultsState.quotaWarningSessionEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "quotaWarningSessionEnabled")
-        }
-    }
-
-    var quotaWarningWeeklyEnabled: Bool {
-        get { self.defaultsState.quotaWarningWeeklyEnabled }
-        set {
-            self.defaultsState.quotaWarningWeeklyEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "quotaWarningWeeklyEnabled")
-        }
-    }
-
-    var quotaWarningSoundEnabled: Bool {
-        get { self.defaultsState.quotaWarningSoundEnabled }
-        set {
-            self.defaultsState.quotaWarningSoundEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "quotaWarningSoundEnabled")
-        }
-    }
-
-    var quotaWarningMarkersVisible: Bool {
-        get { self.defaultsState.quotaWarningMarkersVisible }
-        set {
-            self.defaultsState.quotaWarningMarkersVisible = newValue
-            self.userDefaults.set(newValue, forKey: "quotaWarningMarkersVisible")
-        }
-    }
-
-    var quotaWarningThresholdsRaw: [Int] {
-        get { self.defaultsState.quotaWarningThresholdsRaw }
-        set {
-            self.defaultsState.quotaWarningThresholdsRaw = newValue
-            self.userDefaults.set(newValue, forKey: "quotaWarningThresholdsRaw")
-        }
-    }
-
-    var providerChangelogLinksEnabled: Bool {
-        get { self.defaultsState.providerChangelogLinksEnabled }
-        set {
-            self.defaultsState.providerChangelogLinksEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "providerChangelogLinksEnabled")
-        }
-    }
-
     var menuBarShowsHighestUsage: Bool {
         get { self.defaultsState.menuBarShowsHighestUsage }
         set {
@@ -718,6 +662,31 @@ extension SettingsStore {
         get { self.debugLoadingPatternRaw.flatMap(LoadingPattern.init(rawValue:)) }
         set { self.debugLoadingPatternRaw = newValue?.rawValue }
     }
+
+    // MARK: - Proxy
+
+    var proxyEnabled: Bool {
+        get { self.defaultsState.proxyEnabled }
+        set {
+            self.defaultsState.proxyEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "proxyEnabled")
+            CodexBarLog.logger(LogCategories.settings).info(
+                "Proxy enabled updated",
+                metadata: ["enabled": newValue ? "1" : "0"])
+        }
+    }
+
+    var proxyPort: UInt16 {
+        get { self.defaultsState.proxyPort }
+        set {
+            let clamped = max(1024, min(65535, newValue))
+            self.defaultsState.proxyPort = clamped
+            self.userDefaults.set(clamped, forKey: "proxyPort")
+            CodexBarLog.logger(LogCategories.settings).info(
+                "Proxy port updated",
+                metadata: ["port": "\(clamped)"])
+        }
+    }
 }
 
 extension SettingsStore {
@@ -743,21 +712,4 @@ extension SettingsStore {
     }
 
     // MARK: - Proxy
-
-    var proxyEnabled: Bool {
-        get { self.defaultsState.proxyEnabled }
-        set {
-            self.defaultsState.proxyEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "proxyEnabled")
-        }
-    }
-
-    var proxyPort: UInt16 {
-        get { self.defaultsState.proxyPort }
-        set {
-            let clamped = max(1024, min(65535, newValue))
-            self.defaultsState.proxyPort = clamped
-            self.userDefaults.set(Int(clamped), forKey: "proxyPort")
-        }
-    }
 }

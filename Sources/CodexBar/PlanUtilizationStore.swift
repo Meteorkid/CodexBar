@@ -29,11 +29,6 @@ final class PlanUtilizationStore {
     private nonisolated static let weeklyLimitResetDetectorDefaultsKey = "weeklyLimitResetDetectorStates"
     private nonisolated static let weeklyWindowMinutes = 7 * 24 * 60
 
-    struct WeeklyLimitResetDetectorState: Codable, Equatable {
-        let wasAboveThreshold: Bool
-        let lastObservedAt: Date
-    }
-
     func supportsPlanUtilizationHistory(for provider: UsageProvider) -> Bool {
         switch provider {
         case .codex, .claude:
@@ -270,7 +265,7 @@ final class PlanUtilizationStore {
 
         let shouldPost = store.weeklyLimitResetDetectorStates[detectorKey]?.wasAboveThreshold == true
             && !wasAboveThreshold
-        store.weeklyLimitResetDetectorStates[detectorKey] = WeeklyLimitResetDetectorState(
+        store.weeklyLimitResetDetectorStates[detectorKey] = UsageStore.WeeklyLimitResetDetectorState(
             wasAboveThreshold: wasAboveThreshold,
             lastObservedAt: currentObservedAt)
         self.persistWeeklyLimitResetDetectorStates()
@@ -566,11 +561,11 @@ final class PlanUtilizationStore {
     }
 
     nonisolated static func loadWeeklyLimitResetDetectorStates(from userDefaults: UserDefaults)
-        -> [String: WeeklyLimitResetDetectorState]
+        -> [String: UsageStore.WeeklyLimitResetDetectorState]
     {
         guard let data = userDefaults.data(forKey: self.weeklyLimitResetDetectorDefaultsKey) else { return [:] }
         do {
-            return try JSONDecoder().decode([String: WeeklyLimitResetDetectorState].self, from: data)
+            return try JSONDecoder().decode([String: UsageStore.WeeklyLimitResetDetectorState].self, from: data)
         } catch {
             CodexBarLog.logger(LogCategories.confetti).error(
                 "Failed to decode weekly limit reset detector state",
@@ -993,41 +988,4 @@ final class PlanUtilizationStore {
     }
     #endif
 
-}
-
-
-actor PlanUtilizationHistoryPersistenceCoordinator {
-    private let store: PlanUtilizationHistoryStore
-    private var pendingSnapshot: [UsageProvider: PlanUtilizationHistoryBuckets]?
-    private var isPersisting: Bool = false
-
-    init(store: PlanUtilizationHistoryStore) {
-        self.store = store
-    }
-
-    func enqueue(_ snapshot: [UsageProvider: PlanUtilizationHistoryBuckets]) {
-        self.pendingSnapshot = snapshot
-        guard !self.isPersisting else { return }
-        self.isPersisting = true
-
-        Task(priority: .utility) {
-            await self.persistLoop()
-        }
-    }
-
-    private func persistLoop() async {
-        while let nextSnapshot = self.pendingSnapshot {
-            self.pendingSnapshot = nil
-            await self.saveAsync(nextSnapshot)
-        }
-
-        self.isPersisting = false
-    }
-
-    private func saveAsync(_ snapshot: [UsageProvider: PlanUtilizationHistoryBuckets]) async {
-        let store = self.store
-        await Task.detached(priority: .utility) {
-            store.save(snapshot)
-        }.value
-    }
 }

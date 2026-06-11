@@ -18,15 +18,15 @@ public enum KimiK2ProviderDescriptor {
                 creditsHint: "",
                 toggleTitle: "Show unofficial Kimi K2 usage",
                 cliName: "kimik2",
-                defaultEnabled: true,
+                defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: nil,
                 dashboardURL: nil,
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .kimik2,
-                iconResourceName: "ProviderIcon-kimik2",
+                iconStyle: .kimi,
+                iconResourceName: "ProviderIcon-kimi",
                 color: ProviderColor(red: 76 / 255, green: 0 / 255, blue: 255 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
@@ -53,8 +53,7 @@ struct KimiK2APIFetchStrategy: ProviderFetchStrategy {
         guard let apiKey = Self.resolveToken(environment: context.env) else {
             throw KimiK2UsageError.missingCredentials
         }
-        let baseURL = KimiK2SettingsReader.baseURL(environment: context.env)
-        let usage = try await KimiK2UsageFetcher.fetchUsage(apiKey: apiKey, baseURL: baseURL)
+        let usage = try await KimiK2UsageFetcher.fetchUsage(apiKey: apiKey)
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: "api")

@@ -94,6 +94,27 @@ struct AdvancedPane: View {
                         subtitle: L("disable_keychain_access_subtitle"),
                         binding: self.$settings.debugDisableKeychainAccess)
                 }
+
+                Divider()
+
+                SettingsSection(
+                    title: L("section_proxy"),
+                    caption: L("proxy_caption"))
+                {
+                    PreferenceToggleRow(
+                        title: L("enable_proxy_title"),
+                        subtitle: L("enable_proxy_subtitle"),
+                        binding: self.$settings.proxyEnabled)
+                    HStack {
+                        Text(L("proxy_port_title"))
+                            .font(.body)
+                        Spacer()
+                        TextField("9876", value: self.$settings.proxyPort, format: .number)
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 80)
+                            .disabled(!self.settings.proxyEnabled)
+                    }
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 20)

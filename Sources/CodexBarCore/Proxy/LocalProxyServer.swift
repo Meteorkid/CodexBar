@@ -208,10 +208,8 @@ public final class LocalProxyServer: @unchecked Sendable {
     private func identifyProvider(host: String) -> UsageProvider? {
         switch host {
         case "api.deepseek.com": return .deepseek
-        case "open.bigmodel.cn": return .zhipu
         case "ark.cn-beijing.volces.com": return .doubao
-        case "qianfan.baidubce.com": return .ernie
-        case "api.moonshot.cn": return .kimi
+        case "api.moonshot.cn": return .moonshot
         case "api.minimax.chat": return .minimax
         case "api.xiaomimimo.com": return .mimo
         default: return nil

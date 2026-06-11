@@ -977,7 +977,7 @@ final class OpenAIWebStore {
         timeout: TimeInterval) async throws -> OpenAIDashboardSnapshot
     {
         if let override = store._test_openAIDashboardLoaderOverride {
-            return try await override(accountEmail, logger, timeout)
+            return try await override(accountEmail, logger, false, timeout)
         }
         return try await OpenAIDashboardFetcher().loadLatestDashboard(
             accountEmail: accountEmail,

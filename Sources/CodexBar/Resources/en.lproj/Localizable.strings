@@ -539,6 +539,13 @@
 "disable_keychain_access_title" = "Disable Keychain access";
 "disable_keychain_access_subtitle" = "Prevents any Keychain access while enabled.";
 
+/* Proxy Settings */
+"section_proxy" = "Local proxy";
+"proxy_caption" = "Run a local HTTP proxy that records token usage from API calls. Configure your coding tools to use this proxy endpoint.";
+"enable_proxy_title" = "Enable local proxy";
+"enable_proxy_subtitle" = "Start a local proxy server on the specified port.";
+"proxy_port_title" = "Port";
+
 /* About Pane */
 "about_tagline" = "May your tokens never run out—keep agent limits in view.";
 "link_github" = "GitHub";

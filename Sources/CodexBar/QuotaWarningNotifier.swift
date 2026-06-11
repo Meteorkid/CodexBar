@@ -16,26 +16,25 @@ final class QuotaWarningNotifier {
     {
         guard settings.quotaWarningNotificationsEnabled else { return }
 
-        let thresholds = QuotaWarningThresholds.active(settings.quotaWarningThresholdsRaw)
-        guard !thresholds.isEmpty else { return }
-
+        let sessionThresholds = settings.quotaWarningThresholds(.session)
+        let weeklyThresholds = settings.quotaWarningThresholds(.weekly)
         let sound: UNNotificationSound? = settings.quotaWarningSoundEnabled ? .default : nil
 
-        if settings.quotaWarningSessionEnabled {
+        if settings.quotaWarningWindowEnabled(.session), !sessionThresholds.isEmpty {
             self.evaluateWindow(
                 provider: provider,
                 window: snapshot.primary,
-                thresholds: thresholds,
+                thresholds: sessionThresholds,
                 lastRemaining: &self.lastSessionRemaining,
                 windowLabel: "session",
                 sound: sound)
         }
 
-        if settings.quotaWarningWeeklyEnabled {
+        if settings.quotaWarningWindowEnabled(.weekly), !weeklyThresholds.isEmpty {
             self.evaluateWindow(
                 provider: provider,
                 window: snapshot.secondary,
-                thresholds: thresholds,
+                thresholds: weeklyThresholds,
                 lastRemaining: &self.lastWeeklyRemaining,
                 windowLabel: "weekly",
                 sound: sound)

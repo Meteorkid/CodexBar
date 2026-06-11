@@ -132,10 +132,6 @@ struct ProviderRegistry {
             base: base,
             provider: provider,
             config: settings.providerConfig(for: provider))
-        env = ProviderConfigEnvironment.applyBaseURLOverride(
-            base: env,
-            provider: provider,
-            config: settings.providerConfig(for: provider))
         // If token account is selected, use its token instead of config's apiKey
         if let account {
             TokenAccountSupportCatalog.scrubEnvironmentForSelectedAccount(
