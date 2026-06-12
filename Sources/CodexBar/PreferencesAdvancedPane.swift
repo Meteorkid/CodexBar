@@ -114,6 +114,11 @@ struct AdvancedPane: View {
                             .frame(width: 80)
                             .disabled(!self.settings.proxyEnabled)
                     }
+                    if self.settings.proxyPort < 1024 {
+                        Text(L("proxy_port_clamped_warning"))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

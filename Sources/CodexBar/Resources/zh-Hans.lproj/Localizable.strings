@@ -533,6 +533,7 @@
 "enable_proxy_title" = "启用本地代理";
 "enable_proxy_subtitle" = "在指定端口启动本地代理服务器。";
 "proxy_port_title" = "端口";
+"proxy_port_clamped_warning" = "端口范围 1024–65535，低于 1024 的值将自动调整。";
 
 "about_tagline" = "愿你的 token 永不耗尽——随时关注智能体额度。";
 "link_github" = "GitHub";

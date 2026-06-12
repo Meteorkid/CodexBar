@@ -676,12 +676,13 @@ extension SettingsStore {
         }
     }
 
+    /// 代理端口（UInt16），UserDefaults 以 Int 存取，与项目其他数值字段一致。
     var proxyPort: UInt16 {
         get { self.defaultsState.proxyPort }
         set {
-            let clamped = max(1024, min(65535, newValue))
+            let clamped = UInt16(max(1024, min(65535, Int(newValue))))
             self.defaultsState.proxyPort = clamped
-            self.userDefaults.set(clamped, forKey: "proxyPort")
+            self.userDefaults.set(Int(clamped), forKey: "proxyPort")
             CodexBarLog.logger(LogCategories.settings).info(
                 "Proxy port updated",
                 metadata: ["port": "\(clamped)"])
@@ -710,6 +711,4 @@ extension SettingsStore {
         }
         return self.normalizeProviders(providers, maxCount: maxCount)
     }
-
-    // MARK: - Proxy
 }

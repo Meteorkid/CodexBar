@@ -395,7 +395,7 @@ extension SettingsStore {
         let providerDetectionCompleted = userDefaults.object(forKey: "providerDetectionCompleted") as? Bool ?? false
         let appLanguageRaw = userDefaults.string(forKey: "appLanguage")
         let proxyEnabled = userDefaults.object(forKey: "proxyEnabled") as? Bool ?? false
-        let proxyPort = userDefaults.object(forKey: "proxyPort") as? UInt16 ?? 9876
+        let proxyPort = UInt16(userDefaults.object(forKey: "proxyPort") as? Int ?? 9876)
 
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
